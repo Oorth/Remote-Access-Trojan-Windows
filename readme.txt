@@ -1,48 +1,54 @@
 
+      :::::::::      :::           :::::::::      ::: ::::::::::: 
+     :+:    :+:   :+: :+:         :+:    :+:   :+: :+:   :+:      
+    +:+    +:+  +:+   +:+        +:+    +:+  +:+   +:+  +:+       
+   +#+    +:+ +#++:++#++:       +#++:++#:  +#++:++#++: +#+        
+  +#+    +#+ +#+     +#+       +#+    +#+ +#+     +#+ +#+         
+ #+#    #+# #+#     #+#       #+#    #+# #+#     #+# #+#          
+#########  ###     ###       ###    ### ###     ### ###           	
 
 
+		Overview------------------------
 
-				Overview------------------------
-				
-				
-					Components---
+
+			Components---
+			
+					| Keylogger-
+							Backspace detection
 					
-							| Keylogger-
-									Backspace detection
-							
-							| Screenshots-
-							
-							| Webcam-
-							
-							| Exfilteration-
-									stealing documents
-							
-							| remote access-
-							
-							| Credentials-
-									Web
-									Computer
-									applications
-									Wifi Credentials
-							
-							| Advance reconniance-
-									contact info					
-							
-							| privesc-		
-							
-							| Worm-	
-							
-								
-				Roadmap--------------------
-				
-							| obfuscation-
-									AV and VM detection
-									disabling firewall
-				
-				Extra---
+					| Screenshots-
 					
-							Blue Screen of Death
-							
-							Web history		
-							
-							User Activity
+					| Webcam-
+					
+					| Exfilteration-
+							stealing documents
+					
+					| remote access-
+					
+					| Credentials-
+							Web
+							Computer
+							applications
+							Wifi Credentials
+					
+					| Advance reconniance-
+							contact info					
+					
+					| privesc-		
+					
+					| Worm-	
+					
+						
+		Roadmap--------------------
+
+					| obfuscation-
+							AV and VM detection
+							disabling firewall
+
+		Extra---
+			
+					Blue Screen of Death
+					
+					Web history		
+					
+					User Activity
