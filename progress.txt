@@ -1,0 +1,3 @@
+soo all environment is setup
+
+both attacker n trget vms are set
