@@ -1,7 +1,15 @@
 
-@rem @echo off
+@REM @echo off
 
-SET INITIALPATH="C:\Users\%username%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
-cd %INITIALPATH%
+SET currentDirectory=%cd%
+echo Current directory: %currentDirectory%
 
-mkdir abc
+SET TARGETPATH="C:\Users\%username%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
+cd %TARGETPATH%
+
+@REM make a message box
+@REM (echo MsgBox "Line 1", 262192, "Title") > popup.vbs
+
+@REM cd %currentDirectory%
+@REM (echo MsgBox "Line 1", 262192, "Title") > popup.vbs
+
