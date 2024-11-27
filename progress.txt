@@ -5,3 +5,5 @@ both attacker n trget vms are set
 script is set
 
 now to make it self deleting
+
+now it deletes itself after execution
