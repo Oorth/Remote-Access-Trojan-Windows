@@ -1,3 +1,7 @@
 soo all environment is setup
 
 both attacker n trget vms are set
+
+script is set
+
+now to make it self deleting
