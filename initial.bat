@@ -1,11 +1,7 @@
 
-@echo off
+@rem @echo off
 
-SET INITIALPATH="C:\malware\code\test"
-cd /d %INITIALPATH%
+SET INITIALPATH="C:\Users\%username%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
+cd %INITIALPATH%
 
-@rem echo %cd%
-
-dir
-mkdir hi
-dir
+mkdir abc
