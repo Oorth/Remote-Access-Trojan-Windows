@@ -1,5 +1,5 @@
 
-@REM @echo off
+@echo off
 
 SET currentDirectory=%cd%
 
