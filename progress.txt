@@ -7,3 +7,7 @@ script is set
 now to make it self deleting
 
 now it deletes itself after execution
+
+now it makes a stage2.cmd which downloads the payload from the server
+    and executes it and then deletes itself and the initial script leaving 
+    the payload running on target and inside the startup folder.

