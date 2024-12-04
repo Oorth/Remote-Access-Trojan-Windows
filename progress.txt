@@ -15,3 +15,5 @@
 -stage 2 can now run scripts (ps1 and cmd)with admin previlages
 
 -now we dont need initial.ps1, make file in temp , exclude from defender scan
+
+-made admin user, got reverse shell via ssh
