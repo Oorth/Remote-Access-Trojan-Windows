@@ -1,4 +1,7 @@
 
+#variables
+$ip = (Invoke-WebRequest -Uri "http://ifconfig.me/ip").Content.Trim()
+
 #---------------------------------------------------------------------------------------------------------------
 # make a new admin user
 # Define the username and password for the new admin account
