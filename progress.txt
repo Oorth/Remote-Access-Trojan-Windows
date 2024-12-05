@@ -17,3 +17,5 @@
 -now we dont need initial.ps1, make file in temp , exclude from defender scan
 
 -made admin user, got reverse shell via ssh
+
+-server ready to get text file, address issue in upload.ps1
