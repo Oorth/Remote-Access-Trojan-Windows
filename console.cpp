@@ -61,7 +61,6 @@ void getdata()
 
 int main() 
 {
-
     banner();
     getdata();
 
