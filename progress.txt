@@ -19,3 +19,6 @@
 -made admin user, got reverse shell via ssh
 
 -server ready to get text file, address issue in upload.ps1
+
+
+now select a file to configer;;;;;;;;;;;;  do ssh 
