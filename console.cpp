@@ -5,10 +5,12 @@ using namespace std;
 #define MAX_IP_LENGTH 16   // Maximum length for an IPv4 address
 #define MAX_TEXT_LENGTH 256 // Maximum length for the random text
 
-char ipAddress[MAX_IP_LENGTH];
-char randomText[MAX_TEXT_LENGTH];
-char randomText2[MAX_TEXT_LENGTH];
+int argc_global;
+char **argv_global;
+
+char ipAddress[MAX_IP_LENGTH], randomText[MAX_TEXT_LENGTH];
 char os;
+
 
 void os_detection()
  {
@@ -27,20 +29,20 @@ void banner()
 {
     cout << R"(
 
-                      :::::::::      :::           :::::::::      ::: ::::::::::: 
-                     :+:    :+:   :+: :+:         :+:    :+:   :+: :+:   :+:      
-                    +:+    +:+  +:+   +:+        +:+    +:+  +:+   +:+  +:+       
-                   +#+    +:+ +#++:++#++:       +#++:++#:  +#++:++#++: +#+        
-                  +#+    +#+ +#+     +#+       +#+    +#+ +#+     +#+ +#+         
-                 #+#    #+# #+#     #+#       #+#    #+# #+#     #+# #+#          
-                #########  ###     ###       ###    ### ###     ### ###           
+                                  :::::::::      :::           :::::::::      ::: ::::::::::: 
+                                 :+:    :+:   :+: :+:         :+:    :+:   :+: :+:   :+:      
+                                +:+    +:+  +:+   +:+        +:+    +:+  +:+   +:+  +:+       
+                               +#+    +:+ +#++:++#++:       +#++:++#:  +#++:++#++: +#+        
+                              +#+    +#+ +#+     +#+       +#+    +#+ +#+     +#+ +#+         
+                             #+#    #+# #+#     #+#       #+#    #+# #+#     #+# #+#          
+                            #########  ###     ###       ###    ### ###     ### ###           
 
-                                [::] Made By Oorth :) [::]
-                        
-                        [::] Use this Ethically, if you dont [::]
-                            [::] I'll just enjoy watching  [::]
+                                            [::] Made By Oorth :) [::]
+                                    
+                                    [::] Use this Ethically, if you dont [::]
+                                        [::] I'll just enjoy watching  [::]
 
-                                [::] UNDER DEVELOPMENT!! [::]
+                                            [::] UNDER DEVELOPMENT!! [::]
 )";
 
 }
@@ -49,96 +51,77 @@ void noConig()
 {
     cout << R"(
 
-                      :::::::::      :::           :::::::::      ::: ::::::::::: 
-                     :+:    :+:   :+: :+:         :+:    :+:   :+: :+:   :+:      
-                    +:+    +:+  +:+   +:+        +:+    +:+  +:+   +:+  +:+       
-                   +#+    +:+ +#++:++#++:       +#++:++#:  +#++:++#++: +#+        
-                  +#+    +#+ +#+     +#+       +#+    +#+ +#+     +#+ +#+         
-                 #+#    #+# #+#     #+#       #+#    #+# #+#     #+# #+#          
-                #########  ###     ###       ###    ### ###     ### ###               
+                                  :::::::::      :::           :::::::::      ::: ::::::::::: 
+                                 :+:    :+:   :+: :+:         :+:    :+:   :+: :+:   :+:      
+                                +:+    +:+  +:+   +:+        +:+    +:+  +:+   +:+  +:+       
+                               +#+    +:+ +#++:++#++:       +#++:++#:  +#++:++#++: +#+        
+                              +#+    +#+ +#+     +#+       +#+    +#+ +#+     +#+ +#+         
+                             #+#    #+# #+#     #+#       #+#    #+# #+#     #+# #+#          
+                            #########  ###     ###       ###    ### ###     ### ###               
 
-                            !!NO CONFIGURATION FILE LOADED!!
+                                         !! NO CONFIGURATION FILE LOADED !!
                                     
-                                    [::] Do this [::]
-                        [::] Application_name.exe -config.txt [::]
+                                                [::] Do this [::]
+                                    [::] Application_name.exe -f config.txt [::]
 
 
 )";
 
 }
 
-void getdata(const char *fileName)
+bool getdata()
 {
-
     FILE *sourceFile;
-    long fileSize;
-    char *buffer;
+    const char *fileName = NULL;
+
+
+    if (argc_global < 3) return false;
+
+    if (strcmp(argv_global[1], "-f") == 0) fileName = argv_global[2];
+    else return false;
+
 
     sourceFile = fopen(fileName, "r");
-
-    if (sourceFile == NULL)  // Check if the file opened successfully
+    if (sourceFile == NULL)
     {
-        perror("Failed to open file");
-        return;
+        perror("\n\n\t|||||| Failed to open file ||||||\n\n");
+        return false;
     }
 
-    fseek(sourceFile, 0, SEEK_END);                                     // Move the file pointer to the end to get the file size
-    fileSize = ftell(sourceFile);                                       // Get the size of the file
-    fseek(sourceFile, 0, SEEK_SET);                                     // Move back to the start of the file
 
-    buffer = (char *)malloc(fileSize + 1);                              // +1 for null-terminator
-    
-    while (fscanf(sourceFile, "%15s", ipAddress) == 1)                  // Read the IP address from the line
+    while (fscanf(sourceFile, "%15s", ipAddress) == 1)                                                // Read the IP address
     {        
-        fgetc(sourceFile);                                              // Consume the newline character left by fscanf
-        if (fgets(randomText, MAX_TEXT_LENGTH, sourceFile) != NULL)     // Read the random text from the next line
+        fgetc(sourceFile);                                                                            // Consume the newline character left by fscanf
+        if (fgets(randomText, MAX_TEXT_LENGTH, sourceFile) != NULL)                                   // Read the random text
         {
-            randomText[strcspn(randomText, "\n")] = '\0';               // Remove the newline character if it exists in randomText
+            randomText[strcspn(randomText, "\n")] = '\0';                                             // Remove the newline character if it exists in randomText
         }
     }
 
     fclose(sourceFile);
-    free(buffer);
+
+    return true;
 }
 
 int main(int argc, char *argv[]) 
 {
-   bool configration=0;
-    os_detection();
+    argc_global = argc;
+    argv_global = argv;
 
-    if (argc < 1)  // Check if the user has provided both -f and the file argument
+    if (!getdata())
     {
         noConig();
-        return 1;
+        system("pause");
+        return 0;
     }
 
-    const char *fileName = NULL;
+    banner(); 
+    os_detection();
 
-    // Loop through the command-line arguments to find the -f flag and its associated file
-    for (int i = 1; i < argc; i++)
-    {
-        if (strcmp(argv[i], "-f") == 0 && i + 1 < argc)  // If -f is found
-        {
-            fileName = argv[i + 1];  // Get the file name from the next argument
-            break;
-        }
-    }
+    printf("\n\n\tIP Address: %s\n", ipAddress);
+    printf("\tRandom Text: %s\n", randomText);
+    printf("\tOS: %c\n\n\n", os);
 
-    if (fileName == NULL)  // Check if a valid file name was found
-    {
-        printf("File parameter missing or incorrect. Usage: application.exe -f <filename>\n");
-        return 1;
-    }
-
- //   if (configration == 0) noConig();
-    else
-    {
-        banner();
-        getdata(fileName);
-
-        printf("\n\n\tIP Address: %s\n", ipAddress);
-        printf("\tRandom Text: %s\n", randomText);
-        printf("\tOS: %c\n\n\n", os);
-    }
+    system("pause");
     return 0;
 }
