@@ -2,8 +2,8 @@
 #include <string.h>
 using namespace std;
 
-#define MAX_IP_LENGTH 16   // Maximum length for an IPv4 address
-#define MAX_TEXT_LENGTH 256 // Maximum length for the random text
+#define MAX_IP_LENGTH 16
+#define MAX_TEXT_LENGTH 256
 
 int argc_global;
 char **argv_global;
