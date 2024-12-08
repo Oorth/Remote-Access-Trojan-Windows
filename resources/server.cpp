@@ -31,7 +31,8 @@ int main()
 
     char buffer[512];
     int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
-    if (bytesReceived > 0) {
+    if (bytesReceived > 0)
+    {
         buffer[bytesReceived] = '\0';
         cout << "Received: " << buffer << endl;
 
