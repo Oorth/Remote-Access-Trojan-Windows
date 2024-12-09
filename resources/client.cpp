@@ -2,6 +2,7 @@
 #include <iostream>
 #include <ws2tcpip.h>
 
+
 using namespace std;
 #pragma comment(lib, "ws2_32.lib")
 
@@ -39,17 +40,27 @@ int main()
     
     WSADATA wsaData;
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
     WSAStartup(MAKEWORD(2, 2), &wsaData);
     SOCKET clientSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     connect(clientSock, (sockaddr*)&serverAddr, sizeof(serverAddr));
 
-    // const char* message = "Hello, Server!";
-    // send(clientSock, message, strlen(message), 0);
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     cout << "got this -> " << receive_data(clientSock) << endl;
     send_data(clientSock,"Ye lo");
 
+
+
+    
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    
+    send_data(clientSock," closing!! ");
 
     closesocket(clientSock);
     WSACleanup();

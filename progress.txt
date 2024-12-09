@@ -24,4 +24,7 @@
 -now select a file to configer,  do ssh [pending!!]
 
 -code for socket programming  use this to compile cl /EHsc client.cpp /link ws2_32.lib
-    try to send back its ip address, should come as 2nd parameter of accept()
+    try to send back its ip address, should come as 2nd parameter of accept()           [  wont need this ]
+
+-pipes set up , works with cmd prompt , not to make it clean 
+    -implement with server and client                                                   [ to do ]

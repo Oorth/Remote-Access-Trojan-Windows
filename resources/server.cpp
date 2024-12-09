@@ -38,24 +38,31 @@ int main()
     serverAddr.sin_addr.s_addr = INADDR_ANY;                                                                // Any available network interface
     
     WSADATA wsaData;
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
     WSAStartup(MAKEWORD(2, 2), &wsaData);                                                                   // Initialize Winsock
-    
     SOCKET serversock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);                                          // Make socket
     int bindResult = bind(serversock, (sockaddr*)&serverAddr, sizeof(serverAddr));                          // Bind
-
-
     listen(serversock, SOMAXCONN);
-    cout << "Waiting for incoming connections..." << endl;
-
     
+    cout << "Waiting for incoming connections..." << endl;
     SOCKET clientSocket = accept(serversock, nullptr, nullptr);
+    
     cout << "Client connected!" << endl;
+    
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     send_data(clientSocket," Gib Shell pls UwU ");
     cout << "got this -> " << receive_data(clientSocket) << endl;
     
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    cout << "got this -> " << receive_data(clientSocket) << endl;
 
     closesocket(clientSocket);
     closesocket(serversock);
