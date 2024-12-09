@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    banner(); 
+    banner();
     os_detection();
 
     printf("\n\n\tIP Address: %s\n", ipAddress);
