@@ -26,5 +26,8 @@
 -code for socket programming  use this to compile cl /EHsc client.cpp /link ws2_32.lib
     try to send back its ip address, should come as 2nd parameter of accept()           [  wont need this ]
 
+
+- doin research on stdin and out and pipes
+
 -pipes set up , works with cmd prompt , not to make it clean 
     -implement with server and client                                                   [ to do ]
