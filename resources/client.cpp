@@ -103,22 +103,54 @@ int main()
     //send_data(clientSock, const string &data)       
     
     // Read the output from the child process.
-    char buffer[4096];
-    DWORD bytesRead;
-    while (ReadFile(hChildStdOutRead, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0) 
-    {
-        buffer[bytesRead] = '\0';  // Null-terminate the output.
-        cout << buffer;
-    }
+    // char buffer[4096];
+    // DWORD bytesRead;
+    // while (ReadFile(hChildStdOutRead, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0) 
+    // {
+    //     buffer[bytesRead] = '\0';  // Null-terminate the output.
+    //     cout << buffer;
+    // }
 
+// Start reading from the pipe with a timeout
+    char buffer[4096];
+    DWORD bytesRead = 0;
+    DWORD timeout = 5000;  // 5 seconds timeout
+    DWORD startTime = GetTickCount();
+
+    while (TRUE)
+    {
+        // Check the time elapsed
+        DWORD elapsedTime = GetTickCount() - startTime;
+        if (elapsedTime >= timeout)
+        {
+            // Timeout reached
+            cout << "Timed out while reading output." << endl;
+            break;
+        }
+
+        // Try to read from the pipe
+        if (ReadFile(hChildStdOutRead, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0)
+        {
+            buffer[bytesRead] = '\0';  // Null-terminate the buffer
+            cout << "Received Output: " << buffer << endl;
+            break;  // Successfully read, break out of the loop
+        }
+        else
+        {
+            // Sleep for a while to avoid busy-waiting
+            Sleep(100);  // Sleep 10 milliseconds
+        }
+    }
 
     cout<< "here";
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    CloseHandle(hChildStdOutRead);
-    CloseHandle(hChildStdInWrite);
-    WaitForSingleObject(pi.hProcess, INFINITE);
+    CloseHandle(hChildStdOutRead);      // Make sure to close the read end of the pipe after reading.
+    WaitForSingleObject(pi.hProcess, INFINITE);         // Wait for the child process to finish.
+    
+    //CloseHandle(hChildStdInWrite);
+
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
  
