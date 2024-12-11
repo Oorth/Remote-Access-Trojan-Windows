@@ -31,3 +31,6 @@
 
 -pipes set up , works with cmd prompt , not to make it clean 
     -implement with server and client                                                   [ to do ]
+
+
+- will need to make 2 sockets and 2 pipes and 2 cmd prompts on both end and connect them
