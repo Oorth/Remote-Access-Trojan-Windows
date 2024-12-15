@@ -1,6 +1,10 @@
 #include <iostream>
 #include <windows.h>
 #include <string>
+#include <thread>
+#include <tuple>
+#include <atomic>
+
 using namespace std;
 
 int main() 
@@ -8,13 +12,14 @@ int main()
     SECURITY_ATTRIBUTES saAttr = {0};
     saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
     saAttr.bInheritHandle = TRUE;
-    
-    HANDLE hChildStdOutRead, hChildStdOutWrite;                             //stdout
-    HANDLE hChildStdInRead, hChildStdInWrite;                               //stdin
+
+    HANDLE hChildStdOutRead, hChildStdOutWrite;  // stdout
+    HANDLE hChildStdInRead, hChildStdInWrite;    // stdin
 
     // Create pipes for child process's STDOUT.
     CreatePipe(&hChildStdOutRead, &hChildStdOutWrite, &saAttr, 0);
     SetHandleInformation(hChildStdOutRead, HANDLE_FLAG_INHERIT, 0);
+
     // Create pipes for child process's STDIN.
     CreatePipe(&hChildStdInRead, &hChildStdInWrite, &saAttr, 0);
     SetHandleInformation(hChildStdInWrite, HANDLE_FLAG_INHERIT, 0);
@@ -28,32 +33,77 @@ int main()
 
     PROCESS_INFORMATION pi = {0};
     wchar_t command[] = L"cmd.exe";
-    CreateProcessW(NULL, command, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi);
-    
+    if (!CreateProcessW(NULL, command, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
+        cerr << "CreateProcess failed with error code: " << GetLastError() << endl;
+        return 1;
+    }
+
     // Close handles not needed by the parent.
     CloseHandle(hChildStdOutWrite);
     CloseHandle(hChildStdInRead);
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    
-    // Write a command to the child process.
-    const char* cmd = "dir\n";  // Example command.
-    DWORD bytesWritten;
-    WriteFile(hChildStdInWrite, cmd, strlen(cmd), &bytesWritten, NULL);
-    FlushFileBuffers(hChildStdInWrite); // Ensure the command is sent.
-    // Read the output from the child process.
-    char buffer[4096];
-    DWORD bytesRead;
-    while (ReadFile(hChildStdOutRead, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0) 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // Lambda for reading from the child process stdout
+    atomic<bool> processFinished(false);
+    auto readThread = std::thread([&]()
     {
-        buffer[bytesRead] = '\0';  // Null-terminate the output.
-        cout << buffer;
+        const size_t bufferSize = 4096;
+        char buffer[bufferSize];
+        DWORD bytesRead;
+
+        while (!processFinished.load())
+        {
+            if (ReadFile(hChildStdOutRead, buffer, bufferSize, &bytesRead, NULL))
+            {
+                if (bytesRead > 0) 
+                {
+                    buffer[bytesRead] = '\0';
+                    cout << buffer;
+                }
+            } else if (GetLastError() == ERROR_BROKEN_PIPE)
+            {
+                // End of data
+                break;
+            }
+            Sleep(10); // Sleep for a short time to prevent 100% CPU usage
+        }
+    });
+
+    string cmd;
+    while (true) 
+    {
+        cout << "> ";
+        getline(cin, cmd);
+
+        if(cmd == "exit") break;
+
+        cmd += "\r\n";
+        DWORD bytesWritten;
+        if (!WriteFile(hChildStdInWrite, cmd.c_str(), cmd.length(), &bytesWritten, NULL)) {
+            cerr << "WriteFile failed with error code: " << GetLastError() << endl;
+            break;
+        }
+        FlushFileBuffers(hChildStdInWrite);
     }
-    
-    // Cleanup.
+
+    // Close the child's stdin to terminate it gracefully
+    processFinished.store(true);
+    string exitCmd = "exit\r\n";
+    DWORD bytesWritten;
+    WriteFile(hChildStdInWrite, exitCmd.c_str(), exitCmd.length(), &bytesWritten, NULL);
+    FlushFileBuffers(hChildStdInWrite);
+
+    // Wait for the process to exit
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    // Clean up
+    readThread.join();
     CloseHandle(hChildStdOutRead);
     CloseHandle(hChildStdInWrite);
-    WaitForSingleObject(pi.hProcess, INFINITE);
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
+
+    cout << "Ending program." << endl;
     return 0;
 }
