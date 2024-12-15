@@ -87,7 +87,7 @@ int main()
         FlushFileBuffers(hChildStdInWrite);
     }
 
-    // Close the child's stdin to terminate it gracefully
+    // Close the child's stdin
     processFinished.store(true);
     string exitCmd = "exit\r\n";
     DWORD bytesWritten;

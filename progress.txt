@@ -23,7 +23,7 @@
 
 -now select a file to configer,  do ssh [pending!!]
 
--code for socket programming  use this to compile cl /EHsc client.cpp /link ws2_32.lib
+-code for socket programming  use this to compile         |||||  cl /EHsc client.cpp /link ws2_32.lib  ||||||
     try to send back its ip address, should come as 2nd parameter of accept()           [  wont need this ]
 
 
@@ -33,4 +33,7 @@
     -implement with server and client                                                   [ to do ]
 
 
-- will need to make 2 sockets and 2 pipes and 2 cmd prompts on both end and connect them
+- will need to make 2 sockets and 2 pipes and 2 cmd prompts on both end and connect them.
+
+- now the pipe stuff works, like i get an interactive shell through pipes and will need to all this thing in the server and client code, i think i'll need two
+pipes and send data through them. 
