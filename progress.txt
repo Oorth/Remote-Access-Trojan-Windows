@@ -36,4 +36,7 @@
 - will need to make 2 sockets and 2 pipes and 2 cmd prompts on both end and connect them.
 
 - now the pipe stuff works, like i get an interactive shell through pipes and will need to all this thing in the server and client code, i think i'll need two
-pipes and send data through them. 
+pipes and send data through them.
+
+- ok soo now the shells can communicate over the socket, but now i will need to make a thread to handel the data coming from the server, and in the 
+server make threads to read and write to the socket. and it exites after inputting " dir " check y.
