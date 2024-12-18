@@ -8,7 +8,5 @@ if ($_FILES['file']['error'] == UPLOAD_ERR_OK) {
     } else {
         echo "Sorry, there was an error uploading your file.";
     }
-} else {
-    echo "Error: " . $_FILES["file"]["error"];
-}
+} else echo "Error: " . $_FILES["file"]["error"];
 ?>
