@@ -31,8 +31,7 @@ string receive_data(SOCKET clientSocket)
 
     return ""; // Return an empty string in case of error or connection closure
 }
-
-void send_data(SOCKET clientSocket, const string &data) // Does not send special data
+void send_data(SOCKET clientSocket, const string &data) // Doesnot send special data
 {
     int bytesSent = send(clientSocket, data.c_str(), data.length(), 0);
 
@@ -40,7 +39,6 @@ void send_data(SOCKET clientSocket, const string &data) // Does not send special
         cerr << "Send failed with error: " << WSAGetLastError() << endl;
     // else cout << "Sent data: " << data << endl;
 }
-
 void give_command(const std::string &command)
 {
     string cmd = command + "\r\n";
@@ -65,6 +63,8 @@ int main()
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    // SOCKET clientSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
     SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock == INVALID_SOCKET)
     {
@@ -73,11 +73,17 @@ int main()
         return 1;
     }
 
+    // sockaddr_in serverAddr;
+    // serverAddr.sin_family = AF_INET;
+    // serverAddr.sin_port = htons(8080);
+    // serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
     sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(8081); // Port for input socket
     serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
+    // connect(clientSock, (sockaddr*)&serverAddr, sizeof(serverAddr));
     if (connect(sock, (sockaddr *)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
     {
         std::cerr << "connect failed.\n";
@@ -91,6 +97,9 @@ int main()
     SECURITY_ATTRIBUTES saAttr = {0};
     saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
     saAttr.bInheritHandle = TRUE;
+
+    // HANDLE hChildStdOutRead, hChildStdOutWrite;  // stdout
+    // HANDLE hChildStdInRead, hChildStdInWrite;    // stdin
 
     // Create pipes for child process's STDOUT.
     CreatePipe(&hChildStdOutRead, &hChildStdOutWrite, &saAttr, 0);
@@ -121,9 +130,8 @@ int main()
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    atomic<bool> processFinished(false);
-    
     // Lambda for reading from the child process stdout
+    atomic<bool> processFinished(false);
     auto readThread = std::thread([&]()
     {
         const size_t bufferSize = 4096;
@@ -140,47 +148,45 @@ int main()
                     cout << buffer;
                     send_data(sock, buffer);
                 }
-            } 
-            else if (GetLastError() == ERROR_BROKEN_PIPE)
+            } else if (GetLastError() == ERROR_BROKEN_PIPE)
             {
                 // End of data
                 break;
             }
             Sleep(10); // Sleep for a short time to prevent 100% CPU usage
+            
         } 
     });
 
-    // Lambda to handle writing to child process's stdin
-    auto writeThread = std::thread([&]()
+    string cmd;
+    while (true)
     {
-        string cmd;
-        while (!processFinished.load())  // Check if process is finished
-        {
-            cout << "> ";
-            getline(cin, cmd);
-            if (cmd == "exit")
-            {
-                processFinished.store(true); // Signal to stop reading thread
-                break;
-            }
+        cout << "> ";
+        getline(cin, cmd);
+        //cmd = receive_data(sock);
+        if (cmd == "exit")
+            break;
+        give_command(cmd);
 
-            // Send the command to the child process's stdin
-            give_command(cmd);
-        }
-    });
+        // cmd += "\r\n";
+        // DWORD bytesWritten;
+        // if (!WriteFile(hChildStdInWrite, cmd.c_str(), cmd.length(), &bytesWritten, NULL)) {
+        //     cerr << "WriteFile failed with error code: " << GetLastError() << endl;
+        //     break;
+        // }
+        // FlushFileBuffers(hChildStdInWrite);
+    }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    // Wait for process threads to finish
-    writeThread.join();
+    // Close the child's stdin
     processFinished.store(true);
-
-    // Close stdin and terminate child process
     string exitCmd = "exit\r\n";
     DWORD bytesWritten;
     WriteFile(hChildStdInWrite, exitCmd.c_str(), exitCmd.length(), &bytesWritten, NULL);
     FlushFileBuffers(hChildStdInWrite);
 
+    // Wait for the process to exit
     WaitForSingleObject(pi.hProcess, INFINITE);
 
     // Clean up
@@ -188,10 +194,10 @@ int main()
     CloseHandle(hChildStdOutRead);
     CloseHandle(hChildStdInWrite);
     CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);    
+    CloseHandle(pi.hThread);
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    
+
     send_data(sock, " closing!! ");
 
     closesocket(sock);
