@@ -1,6 +1,11 @@
-#include <iostream>
 #include <winsock2.h>
-#include <windows.h>
+#include <iostream>
+#include <ws2tcpip.h>
+#include <Windows.h>
+#include <string>
+#include <thread>
+#include <tuple>
+#include <atomic>
 
 using namespace std;
 #pragma comment(lib, "ws2_32.lib")                                                                         // Link with ws2_32.lib
@@ -10,11 +15,11 @@ void send_data(SOCKET clientSocket, const string &data)                         
     int bytesSent = send(clientSocket, data.c_str(), data.length(), 0);
     
     if (bytesSent == SOCKET_ERROR) cerr << "Send failed with error: " << WSAGetLastError() << endl;
-    else cout << "Sent data: " << data << endl;
+    //else cout << "Sent data: " << data << endl;
 }
 string receive_data(SOCKET clientSocket)
 {
-    char buffer[512];                                                                           // Buffer to store received data
+    char buffer[1024];                                                                           // Buffer to store received data
     int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
 
     if (bytesReceived > 0)
@@ -76,19 +81,61 @@ int main()
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     //send_data(clientSocket,"cd .."); cout<< "\n\n\n";
-    while(1)
+    atomic<bool> processFinished(false);
+    
+    
+    auto readThread = std::thread([&]()
     {
-        cout << receive_data(clientSocket);
-    }
+        // Main loop to handle communication with the client
+        while (true)
+        {
+            string data = receive_data(clientSocket);
+            if (data.empty())  // Client has disconnected or there was an error
+            {
+                break;  // Exit the loop and close the server
+            }
+            cout << data;
+            Sleep(10); // Sleep for a short time to prevent 100% CPU usage
+        }
+    });
 
-
+    auto writeThread = std::thread([&]()
+    {
+        string cmd;
+        while (!processFinished.load()) // Wait until the process is finished
+        {
+            if (getline(cin, cmd)) // Use getline to allow multi-word commands
+            {
+                if (cmd == "exit")
+                {
+                    send_data(clientSocket, "exit");
+                    processFinished.store(true); // Flag to indicate server shutdown
+                    break;
+                }
+                send_data(clientSocket, cmd); // Send data to the client
+            }
+            // Adding a small sleep to prevent high CPU usage
+            Sleep(10); 
+        }
+    });
 
     // cout << "got this -> " << receive_data(clientSocket) << endl;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    
+    // Wait for process threads to finish
+    readThread.join();
+    writeThread.join();
+    processFinished.store(true);
+
+    // Cleanup and shutdown
+    cout << "Client disconnected. Server shutting down..." << endl;
+    
     closesocket(clientSocket);
     closesocket(listenSocket);
     
+    cout<< "exiting";
+
     WSACleanup();
     return 0;
 }

