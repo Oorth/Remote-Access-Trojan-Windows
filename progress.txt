@@ -40,3 +40,6 @@ pipes and send data through them.
 
 - ok soo now the shells can communicate over the socket, but now i will need to make a thread to handel the data coming from the server, and in the 
 server make threads to read and write to the socket. and it exites after inputting " dir " check y.
+
+-ok soo the reverse shell works now, there is no cmd process opening on the server, server just reads through the stdin and writes to the stdout of the 
+target's cmd process. and dir works now,  :)
