@@ -8,14 +8,12 @@
 #include <atomic>
 
 using namespace std;
-#pragma comment(lib, "ws2_32.lib")                                                                         // Link with ws2_32.lib
+#pragma comment(lib, "ws2_32.lib")                                                              // Link with ws2_32.lib
 
-void send_data(SOCKET clientSocket, const string &data)                                                     // Doesnot send special data 
+void send_data(SOCKET clientSocket, const string &data)                                         // Doesnot send special data 
 {
     int bytesSent = send(clientSocket, data.c_str(), data.length(), 0);
-    
     if (bytesSent == SOCKET_ERROR) cerr << "Send failed with error: " << WSAGetLastError() << endl;
-    //else cout << "Sent data: " << data << endl;
 }
 string receive_data(SOCKET clientSocket)
 {
@@ -55,7 +53,7 @@ int main()
     sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(8081);                                                                      
-    serverAddr.sin_addr.s_addr = INADDR_ANY;                                                                // Any available network interface
+    serverAddr.sin_addr.s_addr = INADDR_ANY;                                                    // Any available network interface
     
     if (bind(listenSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
     {
@@ -80,46 +78,37 @@ int main()
     
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    //send_data(clientSocket,"cd .."); cout<< "\n\n\n";
     atomic<bool> processFinished(false);
-    
     
     auto readThread = std::thread([&]()
     {
-        // Main loop to handle communication with the client
-        while (true)
+        while (!processFinished.load())
         {
             string data = receive_data(clientSocket);
-            if (data.empty())  // Client has disconnected or there was an error
-            {
-                break;  // Exit the loop and close the server
-            }
+            if (data.empty()) break;                                                            // Client has disconnected or there was an error
             cout << data;
-            Sleep(10); // Sleep for a short time to prevent 100% CPU usage
+            Sleep(10);                                                                          // Sleep for a short time to prevent 100% CPU usage
         }
     });
 
     auto writeThread = std::thread([&]()
     {
         string cmd;
-        while (!processFinished.load()) // Wait until the process is finished
+        while (!processFinished.load())                                                                     
         {
-            if (getline(cin, cmd)) // Use getline to allow multi-word commands
+            if (getline(cin, cmd))                                                              //getline to allow multi-word commands
             {
                 if (cmd == "exit")
                 {
                     send_data(clientSocket, "exit");
-                    processFinished.store(true); // Flag to indicate server shutdown
+                    processFinished.store(true);
                     break;
                 }
-                send_data(clientSocket, cmd); // Send data to the client
+                send_data(clientSocket, cmd);
             }
-            // Adding a small sleep to prevent high CPU usage
             Sleep(10); 
         }
     });
-
-    // cout << "got this -> " << receive_data(clientSocket) << endl;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
@@ -133,8 +122,6 @@ int main()
     
     closesocket(clientSocket);
     closesocket(listenSocket);
-    
-    cout<< "exiting";
 
     WSACleanup();
     return 0;

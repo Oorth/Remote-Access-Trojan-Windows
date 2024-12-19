@@ -154,10 +154,7 @@ int main()
         string cmd;
         while (!processFinished.load())  // Check if process is finished
         {
-            //cout << "> ";
-            //getline(cin, cmd);
             cmd = receive_data(sock);
-            cout << ">" << cmd;
             if (cmd == "exit")
             {
                 processFinished.store(true); // Signal to stop reading thread
