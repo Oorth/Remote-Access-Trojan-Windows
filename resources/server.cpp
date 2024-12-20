@@ -106,7 +106,7 @@ int main()
                 }
                 send_data(clientSocket, cmd);
             }
-            Sleep(10); 
+            Sleep(10);
         }
     });
 

@@ -17,7 +17,8 @@ $sshServiceName = "sshd"
 # Install OpenSSH if not installed (for Windows 10/11)
 $Feature = Get-WindowsCapability -Online | Where-Object {$_.Name -like 'OpenSSH.Server*'} 
 
-if ($Feature.State -ne 'Installed') {
+if ($Feature.State -ne 'Installed')
+{
     Write-Host "OpenSSH is not installed. Installing..."
     Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
     Start-Sleep -Seconds 5
