@@ -76,12 +76,19 @@ int main()
     serverAddr.sin_port = htons(8081); // Port for input socket
     serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-    if (connect(sock, (sockaddr *)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
+    bool connected = false;
+    while (!connected)
     {
-        std::cerr << "connect failed.\n";
-        closesocket(sock);
-        WSACleanup();
-        return 1;
+        if (connect(sock, (sockaddr *)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
+        {
+            std::cerr << "Connection failed. Retrying in 2 seconds...\n";
+            Sleep(2000); // Wait for 2 seconds before retrying
+        }
+        else
+        {
+            connected = true; // Successfully connected
+            std::cout << "Connected to the server!\n";
+        }
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
