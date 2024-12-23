@@ -17,6 +17,7 @@ int argc_global;
 char **argv_global;
 SOCKET listenSocket;
 SOCKET clientSocket;
+bool targetconnected = false;
 
 char ipAddress[MAX_IP_LENGTH], randomText[MAX_TEXT_LENGTH];
 char os;
@@ -61,7 +62,11 @@ int main(int argc, char *argv[])
                 cout << "\n>> Waiting for incoming connections..." << endl;
                 clientSocket = accept(listenSocket, nullptr, nullptr);
 
-                if(get_client_ip(clientSocket) == "127.0.0.1") cout << ">> " << get_client_ip(clientSocket) << " connected." << endl;
+                if(get_client_ip(clientSocket) == "127.0.0.1")
+                {   
+                    cout << ">> " << get_client_ip(clientSocket) << " connected." << endl;
+                    targetconnected = true;
+                }
                 else 
                 {
                     cout << ">> " << get_client_ip(clientSocket) << " Not allowed to connect." << endl;
@@ -306,15 +311,20 @@ int Get_menu_option()
           
                             _________________________________________________________
                                                 
-                                                [::] Menu :) [::]               
-                                    
-                                    Connect a target                        1
+                                                [::] Menu :) [::]
+
+                                    Connect a target                        1)";
+    
+    if(!targetconnected) cout << "  [-]";
+    else cout << "  [o]";
+
+cout << R"(
                                     Rev Shell                               2
                                     KeyStroke Injection                     3
             
                                     Exit                                    0
-
 )";
+
 
     cout << ">> ";
     cin >> option;
