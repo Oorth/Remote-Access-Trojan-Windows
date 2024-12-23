@@ -117,12 +117,6 @@ int main(int argc, char *argv[])
         }
     }   
 
-
-
-    // printf("\n\n\tIP Address: %s\n", ipAddress);
-    // printf("\tRandom Text: %s\n", randomText);
-    // printf("\tOS: %c\n\n\n", os);
-
     return 0;
 }
 
@@ -291,6 +285,7 @@ int Get_menu_option()
 {
     int option = 0;
 
+    system("cls");
     cout << R"(
 
 
@@ -318,17 +313,25 @@ int Get_menu_option()
     if(!targetconnected) cout << "  [-]";
     else cout << "  [o]";
 
-cout << R"(
+    cout << R"(
                                     Rev Shell                               2
                                     KeyStroke Injection                     3
             
-                                    Exit                                    0
-)";
+                                    Exit                                    0)";
 
-
-    cout << ">> ";
+    cout << "\n\n>> ";
     cin >> option;
+
+    if(cin.fail())
+    {
+        cin.clear();
+        cout << ">> INT Bro, Int ( -_- )" << endl << endl;
+        system("pause");
+    }
+
+
     return option;
+
 }
 
 string get_client_ip(SOCKET clientSocket)
