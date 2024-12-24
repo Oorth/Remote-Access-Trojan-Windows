@@ -47,3 +47,5 @@ target's cmd process. and dir works now,  :)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!-the server is printing the command again???!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 A very interactive console and target
+
+soo apprently due to defining SOCKET sock = INVALID_SOCKET; in main , i cant use global socket , soo i passed it to the rev_shell();
