@@ -49,3 +49,5 @@ target's cmd process. and dir works now,  :)
 A very interactive console and target
 
 soo apprently due to defining SOCKET sock = INVALID_SOCKET; in main , i cant use global socket , soo i passed it to the rev_shell();
+
+now to do communication over internt............ will use a php server to do that
