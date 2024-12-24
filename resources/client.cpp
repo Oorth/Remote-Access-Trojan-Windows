@@ -36,10 +36,11 @@ void safe_closesocket(SOCKET& s) {
 
 int main()
 {
+    //SOCKET sock = INVALID_SOCKET;
+
     bool outerloop = true;
     while(outerloop)
     {
-        SOCKET sock = INVALID_SOCKET;
         bool connected = false;
 
         // Initialize Winsock
