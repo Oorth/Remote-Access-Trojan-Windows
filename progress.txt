@@ -45,3 +45,5 @@ server make threads to read and write to the socket. and it exites after inputti
 target's cmd process. and dir works now,  :)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!-the server is printing the command again???!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+A very interactive console and target
