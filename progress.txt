@@ -51,3 +51,6 @@ A very interactive console and target
 soo apprently due to defining SOCKET sock = INVALID_SOCKET; in main , i cant use global socket , soo i passed it to the rev_shell();
 
 now to do communication over internt............ will use a php server to do that
+
+soo using php to make a file on the server, and then using the file as a means of communication, need to find a better method
+like can i use php to connect multiple clients and send and recieve data between them? without the need of a file?
