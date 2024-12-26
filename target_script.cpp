@@ -6,8 +6,8 @@
 #include <thread>
 #include <tuple>
 #include <atomic>
-#include <sstream> // Include for stringstream
-#include <ws2tcpip.h> // For gai_strerror
+#include <sstream>                                                              // Include for stringstream
+#include <ws2tcpip.h>                                                           // For gai_strerror
 
 using namespace std;
 #pragma comment(lib, "ws2_32.lib")
