@@ -26,8 +26,23 @@ string get_last_error()
     return message;
 }
 
-string receive_response(SOCKET clientSocket)
+string getdata(SOCKET clientSocket)
 {
+    string httpRequest = "GET /RAT/Rat_Data HTTP/1.1\r\n";
+    httpRequest += "Host: arth.imbeddex.com\r\n";
+    httpRequest += "Connection: close\r\n\r\n";
+
+    //cout<< httpRequest<<endl;
+
+    int bytesSent = send(sock, httpRequest.c_str(), httpRequest.length(), 0);
+    if (bytesSent == SOCKET_ERROR)
+    {
+        int error = WSAGetLastError();
+        cerr << "Send failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     char buffer[4096]; // Increased buffer size
     string receivedData;
     int bytesReceived;
@@ -50,40 +65,17 @@ string receive_response(SOCKET clientSocket)
         }
     } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
 
-    return receivedData;
-}
-
-string getdata(string filename)
-{
-    string httpRequest = "GET /RAT/"+filename+" HTTP/1.1\r\n";
-    httpRequest += "Host: arth.imbeddex.com\r\n";
-    httpRequest += "Connection: close\r\n\r\n";
-
-    cout<< httpRequest<<endl;
-
-    int bytesSent = send(sock, httpRequest.c_str(), httpRequest.length(), 0);
-    if (bytesSent == SOCKET_ERROR)
-    {
-        int error = WSAGetLastError();
-        cerr << "Send failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-    }
-
-    return receive_response(sock);
-}
-
-string extractContent(const string& response)
-{
     // Robust HTTP response parsing
-    size_t headerEnd = response.find("\r\n\r\n");
+    size_t headerEnd = receivedData.find("\r\n\r\n");
     if (headerEnd == string::npos) {
-        cerr << "Invalid HTTP response: No header/body separator found." << endl;
+        cerr << "Invalid HTTP receivedData: No header/body separator found." << endl;
         return "";
     }
 
-    string body = response.substr(headerEnd + 4);
+    string body = receivedData.substr(headerEnd + 4);
 
     //Handle chunked transfer encoding (if present)
-    size_t transferEncodingPos = response.find("Transfer-Encoding: chunked");
+    size_t transferEncodingPos = receivedData.find("Transfer-Encoding: chunked");
     if (transferEncodingPos != string::npos)
     {
         string unchunkedBody;
@@ -177,8 +169,8 @@ int main()
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-    //senddata("11111111111111111111111111111111111111111111111111112");
-    cout << "Server response -> \n" << extractContent(getdata("Rat_Data")) << "\n\n";
+    //senddata("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!)");
+    cout << "Data -> \n" << getdata(sock) << "\n\n";
     //cout << receive_response(sock);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
