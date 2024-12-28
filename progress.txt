@@ -54,3 +54,5 @@ now to do communication over internt............ will use a php server to do tha
 
 soo using php to make a file on the server, and then using the file as a means of communication, need to find a better method
 like can i use php to connect multiple clients and send and recieve data between them? without the need of a file?
+
+using file now -_-, send data followed by recieve data doesnt work but via versa works.
