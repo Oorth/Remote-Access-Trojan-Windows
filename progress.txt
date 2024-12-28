@@ -56,3 +56,10 @@ soo using php to make a file on the server, and then using the file as a means o
 like can i use php to connect multiple clients and send and recieve data between them? without the need of a file?
 
 using file now -_-, send data followed by recieve data doesnt work but via versa works.
+
+soo now the recieve_data reads from the file and puts "`" to the file it read (so now ` represents the file is empty)
+(cant do this, will need to send "`" seperately)
+
+now the target behaves as expectedly till the option selection(switch()) , but will need to find out a way to execute stuff on target
+communication issues, i need to send 2 data at once, for keystroke injection , but target will only get the 2nd data, so i need to send the 1st data first and then the 2nd data
+and thre shoud be some indicator that the clientgot the 1st, ill wait till the client puts ` in the from_server.txt
