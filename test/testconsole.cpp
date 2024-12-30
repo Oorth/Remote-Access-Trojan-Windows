@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
             case '1':                                                                   //connect
             {   
                 targetconnected = socket_setup(sock);
-                system("pause");
+                //system("pause");
                 break;
             }
             
@@ -75,9 +75,7 @@ int main(int argc, char *argv[])
             {
                 if (targetconnected)
                 {
-                    send_data(sock,"from_server.txt", "3");
-                    send_data(sock,"from_server.txt", "hello.vbs");
-                    
+                    send_data(sock,"from_server.txt", "3hello.vbs");
                     cout << ">> Sent " << endl;
                 }
                 else cout << ">> Target not connected or socket invalid!!" << endl;
