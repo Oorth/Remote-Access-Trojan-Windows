@@ -63,3 +63,5 @@ soo now the recieve_data reads from the file and puts "`" to the file it read (s
 now the target behaves as expectedly till the option selection(switch()) , but will need to find out a way to execute stuff on target
 communication issues, i need to send 2 data at once, for keystroke injection , but target will only get the 2nd data, so i need to send the 1st data first and then the 2nd data
 and thre shoud be some indicator that the clientgot the 1st, ill wait till the client puts ` in the from_server.txt
+
+to make this rev shell work again , will need to make them wait and all :/
