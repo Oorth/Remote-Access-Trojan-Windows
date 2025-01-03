@@ -65,3 +65,5 @@ communication issues, i need to send 2 data at once, for keystroke injection , b
 and thre shoud be some indicator that the clientgot the 1st, ill wait till the client puts ` in the from_server.txt
 
 to make this rev shell work again , will need to make them wait and all :/
+
+reverse shell is working over the internt. :)
