@@ -99,7 +99,7 @@ ElseIf WScript.Arguments(0) = "uac_launched" Then
             strLocalPath = strFolderPath & "\" & strLocalFile
 
             ' Execute the downloaded file
-            objShell.ShellExecute strLocalPath, "", "", "open", 1
+            objShell.ShellExecute "cmd.exe", "/C """ & strLocalPath & """ >nul 2>&1", strFolderPath, "runas", 0
             If Err.Number <> 0 Then
                 'WScript.Echo "Error running downloaded file: " & Err.Description
                 Err.Clear
