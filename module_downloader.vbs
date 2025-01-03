@@ -109,5 +109,10 @@ ElseIf WScript.Arguments(0) = "uac_launched" Then
         End If
     Next
 
+    ' Schedule the deletion of the script after a delay
+    strScriptPath = WScript.ScriptFullName
+    objShell.ShellExecute "cmd.exe", "/C del """ & strScriptPath & """", "", "", 0
+
+
     'WScript.Echo "Finished."
 End If
