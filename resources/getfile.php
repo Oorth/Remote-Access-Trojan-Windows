@@ -1,12 +1,14 @@
 <?php
-if ($_FILES['file']['error'] == UPLOAD_ERR_OK) {
-    $target_dir = "uploads/";
+if (isset($_FILES["file"]))
+{
+    $target_dir = "uploads/"; // Directory where you want to save the files
     $target_file = $target_dir . basename($_FILES["file"]["name"]);
-    
     if (move_uploaded_file($_FILES["file"]["tmp_name"], $target_file)) {
-        echo "The file ". basename( $_FILES["file"]["name"]). " has been uploaded.";
+        echo "File uploaded successfully.";
     } else {
-        echo "Sorry, there was an error uploading your file.";
+        echo "Error uploading file.";
     }
-} else echo "Error: " . $_FILES["file"]["error"];
+} else {
+    echo "No file received.";
+}
 ?>

