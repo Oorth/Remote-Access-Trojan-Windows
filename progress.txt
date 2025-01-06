@@ -67,3 +67,7 @@ and thre shoud be some indicator that the clientgot the 1st, ill wait till the c
 to make this rev shell work again , will need to make them wait and all :/
 
 reverse shell is working over the internt. :)
+
+added a feature in which the module downloader will send user pc info to the server.
+
+to do-> File upload and download to and from the target
