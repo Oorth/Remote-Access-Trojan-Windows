@@ -166,7 +166,7 @@ Next
 
 ' Get system timezone information
 objFile.WriteLine "============================================================================================="
-objFile.WriteLine "Location and Timezone Info->"
+objFile.WriteLine "Timezone Info->"
 Set colTimezone = objWMIService.ExecQuery("Select * from Win32_TimeZone")
 For Each objItem In colTimezone
     objFile.WriteLine "Timezone: " & objItem.Description
@@ -179,32 +179,19 @@ currentTime = Now
 objFile.WriteLine "Current System Time: " & currentTime
 objFile.WriteLine
 
-
-
-
-' Define the PowerShell command to get public IP and geolocation info
-strCommand = "powershell -WindowStyle Hidden -Command ""$json = Invoke-RestMethod -Uri 'https://ipinfo.io/json'; $json | Select-Object ip, city, region, country, loc | ConvertTo-Json"""
-objShell.Run strCommand, 0, True
-
-' Wait a moment for the PowerShell command to complete
-WScript.Sleep 2000
-
-' Write headers to the file
+' Get system location information
 objFile.WriteLine "============================================================================================="
-objFile.WriteLine "Geolocation Info->"
+objFile.WriteLine "Location Info->"
+Dim http
+' Create HTTP object to send a GET request
+Set http = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+http.open "GET", "http://ipinfo.io/" & strPublicIP & "/json", False
+http.setRequestHeader "Content-Type", "application/json"
+http.send
 
-' Get the output from PowerShell
-Set objExec = objShell.Exec(strCommand)
-strOutput = objExec.StdOut.ReadAll
-
-objFile.WriteLine "PowerShell Output: " & vbCrLf & strOutput
-objFile.WriteLine "============================================================================================="
+objFile.WriteLine http.responseText
 objFile.WriteLine
+Set http = Nothing
 
-' Close the file after writing
+
 objFile.Close
-
-' Clean up the objects
-Set objShell = Nothing
-Set objFSO = Nothing
-Set objFile = Nothing
