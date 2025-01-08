@@ -117,8 +117,8 @@ int main()
                         
                         send_data(sock,"from_server.txt","`");
                         //cout << "mark the received command as read [del]" << endl;
-                        //loop = false;
-                        //outerloop = false;
+                        loop = false;
+                        outerloop = false;
                         
                         break;
                     }

