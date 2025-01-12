@@ -71,3 +71,5 @@ reverse shell is working over the internt. :)
 added a feature in which the module downloader will send user pc info to the server.
 
 to do-> File upload and download to and from the target
+
+keylogger works, but getting detected, executing hello.vbs??? when stopping the keylogger? huh?
