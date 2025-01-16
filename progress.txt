@@ -75,6 +75,7 @@ to do-> File upload and download to and from the target
 keylogger works, but getting detected, executing hello.vbs??? when stopping the keylogger? huh?
 
 
+
 ====================================================================================================================================================================
                                                                         TO do
 
@@ -84,7 +85,7 @@ keylogger works, but getting detected, executing hello.vbs??? when stopping the 
 
                   STAGE 2->
 ___________________________________________________________________________________________________________________________________________________________
- Obfuscating URL for Download
+Obfuscating URL for Download
 You plan to host remotely and obfuscate the URL. To make this less detectable, use Base64 encoding or other obfuscation methods to hide the download source.
 
 Example (Base64 Encoding for URL Obfuscation):
