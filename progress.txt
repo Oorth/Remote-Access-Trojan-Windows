@@ -74,7 +74,7 @@ to do-> File upload and download to and from the target
 
 keylogger works, but getting detected, executing hello.vbs??? when stopping the keylogger? huh?
 
-
+will work on dll rn, soo that my main rat is a .dll
 
 ====================================================================================================================================================================
                                                                         TO do
