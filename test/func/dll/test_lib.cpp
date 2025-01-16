@@ -1,4 +1,5 @@
-// /cl /EHsc /LD .\test_lib.cpp
+//cl /EHsc /LD .\test_lib.cpp /link User32.lib
+
 #include <Windows.h>
 #include <iostream>
 
@@ -14,30 +15,23 @@ BOOL APIENTRY DllMain(
     {
         case DLL_PROCESS_ATTACH: // A process is loading the DLL.
         {
-            int MessageBox(
-            HWND    hWnd,
-            LPCTSTR lpText,
-            LPCTSTR lpCaption,
-            UINT    uType
-            );
-
-            cout << "DLL_PROCESS_ATTACH" << endl;
+            MessageBoxA(NULL, "DLL_PROCESS_ATTACH", "Hola", MB_ICONINFORMATION);
 
         }
         break;
         case DLL_THREAD_ATTACH: // A process is creating a new thread.
         {
-            // int MessageBox(
-            // HWND    hWnd,
-            // LPCTSTR lpText,
-            // LPCTSTR lpCaption,
-            // UINT    uType
-            // );
+            MessageBoxA(NULL, "DLL_THREAD_ATTACH", "Hola", MB_ICONINFORMATION);
         }
         break;
         case DLL_THREAD_DETACH: // A thread exits normally.
         {
-            cout << "[thread deatch]";
+            MessageBoxA(NULL, "DLL_THREAD_DETACH", "Hola", MB_ICONEXCLAMATION);
+        }
+        break;
+        case DLL_PROCESS_DETACH: // A process is terminating.
+        {
+            MessageBoxA(NULL, "DLL_PROCESS_DETACH", "Hola", MB_ICONEXCLAMATION);
         }
         break;
     }
