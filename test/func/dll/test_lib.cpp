@@ -1,39 +1,32 @@
 //cl /EHsc /LD .\test_lib.cpp /link User32.lib
 
 #include <Windows.h>
-#include <iostream>
 
-using namespace std;
+// Function prototype for the ReflectiveLoader
+extern "C" __declspec(dllexport) void ReflectiveLoader();
 
-BOOL APIENTRY DllMain(
-    HANDLE hModule,// Handle to DLL module
-    DWORD ul_reason_for_call,// Reason for calling function
-    LPVOID lpReserved ) // Reserved
+// Entry point for reflective injection
+void ReflectiveLoader()
 {
+    MessageBoxA(NULL, "Reflective Loader Executed!", "Info", MB_ICONINFORMATION);
 
-    switch ( ul_reason_for_call )
+    // Perform additional tasks here (e.g., resolve imports, call payload)
+    // This would normally include parsing the PE header, resolving addresses, etc.
+}
+
+// DLL entry point
+BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD ul_reason_for_call, LPVOID lpReserved) {
+    switch (ul_reason_for_call)
     {
-        case DLL_PROCESS_ATTACH: // A process is loading the DLL.
-        {
-            MessageBoxA(NULL, "DLL_PROCESS_ATTACH", "Hola", MB_ICONINFORMATION);
-
+        case DLL_PROCESS_ATTACH: {
+            DisableThreadLibraryCalls(hModule); // Call the Windows API directly.
+            ReflectiveLoader(); // Call the reflective loader.
+            break;
         }
-        break;
-        case DLL_THREAD_ATTACH: // A process is creating a new thread.
-        {
-            MessageBoxA(NULL, "DLL_THREAD_ATTACH", "Hola", MB_ICONINFORMATION);
-        }
-        break;
-        case DLL_THREAD_DETACH: // A thread exits normally.
-        {
-            MessageBoxA(NULL, "DLL_THREAD_DETACH", "Hola", MB_ICONEXCLAMATION);
-        }
-        break;
-        case DLL_PROCESS_DETACH: // A process is terminating.
-        {
-            MessageBoxA(NULL, "DLL_PROCESS_DETACH", "Hola", MB_ICONEXCLAMATION);
-        }
-        break;
+        case DLL_PROCESS_DETACH:
+        case DLL_THREAD_ATTACH:
+        case DLL_THREAD_DETACH:
+            break;
     }
     return TRUE;
 }

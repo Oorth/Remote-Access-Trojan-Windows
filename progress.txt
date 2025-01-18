@@ -79,6 +79,9 @@ will work on dll rn, soo that my main rat is a .dll
 ====================================================================================================================================================================
                                                                         TO do
 
+                            work on reflective dll [HOld]
+                            To make the networking things as an exported function in a dll.
+
                   stage 1->  
 
 
