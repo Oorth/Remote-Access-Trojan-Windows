@@ -1,6 +1,4 @@
-//cl /EHsc .\ld_dll_frm_mem.cpp /link ws2_32.lib user32.lib kernel32.lib /OUT:ld_dll_frm_mem.exe
 //cl /EHsc .\ld_dll_frm_mem.cpp .\MemoryModule.c /link ws2_32.lib user32.lib kernel32.lib /OUT:ld_dll_frm_mem.exe
-
 #include <ws2tcpip.h>
 #include <winsock2.h>
 #include <windows.h>
@@ -29,9 +27,11 @@ vector<unsigned char> receive_data(SOCKET &clientSocket, const string &filename)
 
 typedef int (*SendDataFunc)(const std::string&, const std::string&);
 typedef string (*RecvDataFunc)(const std::string&);
+typedef vector<unsigned char> (*RecvDataRawFunc)(const std::string&);
 
 SendDataFunc send_data_dll;
 RecvDataFunc receive_data_dll;
+RecvDataRawFunc receive_data_raw_dll;
 
 int main()
 {
@@ -45,39 +45,34 @@ int main()
 
     data = receive_data(sock, "network_lib.dll");
 
-    if (!data.empty())
+    HMEMORYMODULE hModule = MemoryLoadLibrary(data.data(), data.size());
+    if (hModule == NULL)
     {
-        // Load the DLL from memory
-        // Write the received data to a temporary file
-        // Use MemoryModule to load the DLL from memory
-        HMEMORYMODULE hModule = MemoryLoadLibrary(data.data(), data.size());
-        if (hModule == NULL) {
-            std::cerr << "Failed to load DLL from memory.\n";
-            return 1;
-        }
+        std::cerr << "Failed to load DLL from memory.\n";
+        return 1;
+    }
+    std::cout << "DLL loaded from memory successfully.\n";
 
-        //Optionally, you can call a function from the loaded DLL
-        //Example: typedef void (*FuncType)();
-        // RecvDataFunc receive_data_func = (RecvDataFunc)GetProcAddress(hModule, "?receive_data@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV12@@Z");
-        // if (!receive_data_func)
-        // {
-        //     printf("Failed to get function address: %d\n", GetLastError());
-        //     FreeLibrary(hModule);
-        //     return 1;
-        // }
-        // else {
-        //     std::cerr << "Failed to get function address.\n";
-        // }
+    receive_data_raw_dll = (RecvDataRawFunc)MemoryGetProcAddress(hModule, "?receive_data_raw@@YA?AV?$vector@EV?$allocator@E@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z");
+    receive_data_dll = (RecvDataFunc)MemoryGetProcAddress(hModule, "?receive_data@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV12@@Z");
+    send_data_dll = (SendDataFunc)MemoryGetProcAddress(hModule, "?send_data@@YAHAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z");
 
-        std::cout << "DLL loaded from memory successfully.\n";
-
-        // Free the loaded DLL
+    if (!receive_data_dll || !send_data_dll || !receive_data_raw_dll)
+    {
+        std::cerr << "Failed to get one or more function addresses.\n";
         MemoryFreeLibrary(hModule);
+        return 1;
     }
-    else
-    {
-        cerr << "No data received or an error occurred." << endl;
-    }
+
+    send_data_dll("12345678910.txt","HOLA AMIGOO");
+    Sleep(100);
+    cout << receive_data_dll("12345678910.txt")  << "\n" ;
+    Sleep(100);
+    auto raw_data = receive_data_raw_dll("12345678910.txt");
+    for (unsigned char byte : raw_data) cout << std::hex << static_cast<int>(byte) << " ";
+
+    MemoryFreeLibrary(hModule);
+    cout << "\nDLL unloaded from memory.\n";
 
     return 0;
 }
@@ -171,7 +166,7 @@ vector<unsigned char> receive_data(SOCKET &clientSocket, const string &filename)
         if (bytesReceived > 0) {
             receivedData.insert(receivedData.end(), buffer, buffer + bytesReceived);
         } else if (bytesReceived == 0) {
-            cerr << "Connection closed by server." << endl;
+            //cerr << "Connection closed by server." << endl;
             break;
         } else {
             int error = WSAGetLastError();
