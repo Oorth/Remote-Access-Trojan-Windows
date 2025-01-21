@@ -1,0 +1,5 @@
+*.obj
+*.exp
+*.lib
+MemoryModule.h
+MemoryModule.c
