@@ -197,18 +197,25 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD ul_reason_for_call, LPVOID lpRese
     {
         case DLL_PROCESS_ATTACH:
         {
-            //MessageBoxA(NULL, "DLL_PROCESS_ATTACH", "!!!!!!!!", MB_OK | MB_ICONINFORMATION); 
+            MessageBoxA(NULL, "DLL_PROCESS_ATTACH", "!!!!!!!!", MB_OK | MB_ICONINFORMATION); 
             break;
         }
         case DLL_PROCESS_DETACH:
         {
-            //MessageBoxA(NULL, "DLL_PROCESS_DETACH" , "!!!!!!!!", MB_OK | MB_ICONINFORMATION);
+            MessageBoxA(NULL, "DLL_PROCESS_DETACH" , "!!!!!!!!", MB_OK | MB_ICONINFORMATION);
             WSACleanup();
             break;
         }
         case DLL_THREAD_ATTACH:
-        case DLL_THREAD_DETACH:
+        {
+            MessageBoxA(NULL, "DLL_THREAD_ATTACH", "!!!!!!!!", MB_OK | MB_ICONINFORMATION);
             break;
+        }
+        case DLL_THREAD_DETACH:
+        {
+            MessageBoxA(NULL, "DLL_THREAD_DETACH", "!!!!!!!!", MB_OK | MB_ICONINFORMATION);
+            break;
+        }
     }    
     return TRUE;
 }
