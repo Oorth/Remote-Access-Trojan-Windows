@@ -18,7 +18,7 @@ Furthermore, due to its remote access capabilities, improper use or configuratio
 
 ## Overview
 
-It is a Remote Access Trojan made by me for Windows environment. Its staged nature allows for covert control of compromised machines, and uses a custom communication protocal which can connect two endpoints hidden behind NAT networks to communicate over internet with an intermediate server preventing direct connections to the attacker, thus hindering traceback efforts.
+It is a Remote Access Trojan made by me for Windows environment. Its staged and fileless (The actual malware never touches the disk and gets executed from the memory) nature allows for covert control of compromised machines, and uses a custom communication protocal which can connect two endpoints hidden behind NAT networks to communicate over internet with an intermediate server preventing direct connections to the attacker, thus hindering traceback efforts.
 >~~No one can find you :) thank me later~~
 
 It is undetectable by any standard Antivirus. This Malware is written in C++ which allows it to execute with great access to the memory and hence providing the potential for efficient execution, low resource usage, and access to low-level system functions.

