@@ -82,8 +82,8 @@ will work on dll rn, soo that my main rat is a .dll
                             work on reflective dll [HOld]
                             Now to make the rat use the dll functions.
 
-                            in this i removed the key injector and made the tarhet script use the .dll
-                            keystroke still gets detected , need to work on that
+                            in this i seperated the modules of the keylogger
+                            it is not getting detected now, but still will load it from the memory encrypt and decrypt too? 
 ___________________________________________________________________________________________________________________________________________________________
 Obfuscating URL for Download
 You plan to host remotely and obfuscate the URL. To make this less detectable, use Base64 encoding or other obfuscation methods to hide the download source.
