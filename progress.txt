@@ -84,6 +84,8 @@ will work on dll rn, soo that my main rat is a .dll
 
                             in this i seperated the modules of the keylogger
                             it is not getting detected now, but still will load it from the memory encrypt and decrypt too? 
+
+                            loaded from memory now to use encrypted .dlls
 ___________________________________________________________________________________________________________________________________________________________
 Obfuscating URL for Download
 You plan to host remotely and obfuscate the URL. To make this less detectable, use Base64 encoding or other obfuscation methods to hide the download source.
