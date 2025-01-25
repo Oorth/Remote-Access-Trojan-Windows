@@ -1,21 +1,17 @@
 /*
     target_script
 
-    Things to do:
-    1. Load the dll
-
+    Removed the keystroke injection
+    works with network.dll
+    need to add target info stealer
 
 */
 
-// cl /EHsc .\target_script.cpp /link ws2_32.lib /OUT:target_script.exe  
-#include <winsock2.h>
+// cl /EHsc .\target_script.cpp /link /OUT:target_script.exe  
 #include <iostream>
-#include <ws2tcpip.h>
 #include <Windows.h>
 #include <string>
 #include <thread>
-#include <sstream>                                                              // Include for stringstream
-#include <mutex>
 #include <fstream>
 #include <vector>
 
