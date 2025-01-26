@@ -9,7 +9,8 @@
     !! will need the  network_lib.dll and others in the same directory as the executable   !!
 
     make the malicious dlls to load from memory [done]
-    now no files are written to the disk
+    now no files are written to the disk    [done]
+    dynamic api resolution [doing]
     use encrypted dlls next
 */
 
