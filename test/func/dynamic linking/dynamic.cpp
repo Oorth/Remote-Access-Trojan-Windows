@@ -1,8 +1,25 @@
+/*
+
+    got the address of the loadLibraryA 
+        made a custom function wrapper for it
+    loaded the kernel32 lib
+    got the address of the getProcAddress
+        made a custom function wrapper for it
+    
+    got the address of the createFileA
+        made a custom function wrapper for it
+    called the createFileA function
+
+
+    but GetProcAddress is still showing up in the imports of the exe [its fine , its always present in the imports of the exe]
+
+*/
+
 #include <windows.h>
 #include <iostream>
 #include <stdio.h>
 
-typedef FARPROC(WINAPI *MyGetProcAddress)(HMODULE, LPCSTR);
+typedef FARPROC(WINAPI *CustomGetProcAddress)(HMODULE, LPCSTR);
 
 void* FindExportAddress(HMODULE hModule, const char* funcName)
 {
@@ -49,31 +66,38 @@ std::cout << "========================================================" << std::
 
 int main()
 {
+    
+    HMODULE hKernel32 = (HMODULE)GetModuleHandleA("kernel32.dll");
+    typedef HMODULE(WINAPI *LoadLibraryAFn)(LPCSTR);
+    LoadLibraryAFn MyLoadLibraryA = (LoadLibraryAFn)FindExportAddress(hKernel32, "LoadLibraryA");
+
+    typedef HMODULE(WINAPI *FreeLibraryFn)(HMODULE);
+    FreeLibraryFn MyFreeLibrary = (FreeLibraryFn)FindExportAddress(hKernel32, "FreeLibrary");
+
+
+
     // Load kernel32.dll dynamically
-    HMODULE hKernel32 = LoadLibraryA("kernel32.dll");
+    hKernel32 = MyLoadLibraryA("kernel32.dll");
     if (!hKernel32)
     {
         std::cerr << "Failed to load kernel32.dll" << std::endl;
         return 1;
     }   std::cout << "========================================================\nLoaded kernel32.dll" << std::endl;
 
-    MyGetProcAddress pGetProcAddress;
-
+    CustomGetProcAddress myGetProcAddress;
     // Find the address of GetProcAddress manually
-    pGetProcAddress = (MyGetProcAddress)FindExportAddress(hKernel32, "GetProcAddress");
-    if (!pGetProcAddress)
+    myGetProcAddress = (CustomGetProcAddress)FindExportAddress(hKernel32, "GetProcAddress");
+    if (!myGetProcAddress)
     {
         std::cerr << "Failed to find GetProcAddress" << std::endl;
         return 1;
     }
-    std::cout << "!!!!! GetProcAddress address: " << pGetProcAddress << std::endl;
+    std::cout << "!!!!! GetProcAddress address: " << myGetProcAddress << std::endl;
 
 
-    // Use GetProcAddress to get other function addresses dynamically
-    FARPROC pCreateFile = pGetProcAddress(hKernel32, "CreateFileA");
+    FARPROC pCreateFile = myGetProcAddress(hKernel32, "CreateFileA");
     if (pCreateFile)
     {
-        // Cast the address to the correct function pointer type
         typedef HANDLE(WINAPI *CreateFileFn)(LPCSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE);
         CreateFileFn MyCreateFile = (CreateFileFn)pCreateFile;
 
@@ -81,19 +105,15 @@ int main()
         HANDLE hFile = MyCreateFile("myfile.txt", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
         if (hFile != INVALID_HANDLE_VALUE) CloseHandle(hFile);
 
-        // Now attempt to open the file
-        hFile = MyCreateFile("myfile.txt", GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
-        if (hFile != INVALID_HANDLE_VALUE)
-        {
-            std::cout << "Opened myfile.txt" << std::endl;
-            CloseHandle(hFile);
-        } 
-        else std::cerr << "Failed to open myfile.txt" << std::endl;
     }
     else std::cerr << "Failed to find CreateFileA" << std::endl;
-    std::cout << "========================================================" << std::endl;
-    // Free the library
-    FreeLibrary(hKernel32);
+    
+    
+    //CreateFileA("myfile.txt", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
+    
+    MyFreeLibrary(hKernel32);
+
+    std::cout << "========================================================" << std::endl;
     return 0;
 }
