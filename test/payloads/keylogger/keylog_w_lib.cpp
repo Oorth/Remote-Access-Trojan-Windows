@@ -6,6 +6,7 @@
 #include <vector>
 #define DLL_EXPORT __declspec(dllexport)
 ///////////////////////////////////////////////////////////////////////
+HMODULE hUser32,hkernel32, hPsapi;
 HWINEVENTHOOK hk;
 std::vector<std::string>* sharedLogVector = nullptr;
 std::mutex logMutex;
@@ -54,9 +55,9 @@ void* FindExportAddress(HMODULE hModule, const char* funcName)
 
 DLL_EXPORT void Initialize(std::vector<std::string>* logVector)
 {
-    HMODULE hUser32 = (HMODULE)GetModuleHandleA("user32.dll");
-    HMODULE hkernel32 = (HMODULE)GetModuleHandleA("kernel32.dll");
-    HMODULE hPsapi = (HMODULE)GetModuleHandleA("psapi.dll");
+    HMODULE hUser32 = (HMODULE)LoadLibraryA("user32.dll");
+    HMODULE hkernel32 = (HMODULE)LoadLibraryA("kernel32.dll");
+    HMODULE hPsapi = (HMODULE)LoadLibraryA("psapi.dll");
 
     MySetWinEventHook = (SetWinEventHookFn)FindExportAddress(hUser32, "SetWinEventHook");
     MyUnhookWinEventHook = (UnhookWinEventHookFn)FindExportAddress(hUser32, "UnhookWinEventHook");
@@ -75,6 +76,9 @@ DLL_EXPORT void Cleanup()
     if (hk && MyUnhookWinEventHook)
     {
         MyUnhookWinEventHook(hk);
+        FreeLibrary(hUser32);
+        FreeLibrary(hkernel32);
+        FreeLibrary(hPsapi);
         hk = nullptr;
     }
 }

