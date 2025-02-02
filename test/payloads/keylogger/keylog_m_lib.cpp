@@ -45,7 +45,9 @@ void* FindExportAddress(HMODULE hModule, const char* funcName)
             return (void*)((BYTE*)hModule + funcRVA);
         }
     }
-    MessageBoxA(NULL, "Failed to find export address" , "Error", MB_OK);
+    std::string errorMsg = "Failed to find export address for function: ";
+    errorMsg += funcName;
+    MessageBoxA(NULL, errorMsg.c_str(), "Error", MB_OK);
     return nullptr;
 }
 
@@ -82,7 +84,11 @@ DLL_EXPORT void Cleanup()
     if (m_hook) 
     {
         My_Unhuk_WinDows_Huk_Ex(m_hook);
-        FreeLibrary(hUser32);
+        if (hUser32) 
+        {
+            FreeLibrary(hUser32);
+            hUser32 = nullptr;
+        }
         m_hook = nullptr;
     }
 }
