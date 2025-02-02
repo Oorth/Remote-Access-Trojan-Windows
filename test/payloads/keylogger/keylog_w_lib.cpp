@@ -112,7 +112,12 @@ DLL_EXPORT void Cleanup()
         if (hUser32) FreeLibrary(hUser32);
         if (hkernel32) FreeLibrary(hkernel32);
         if (hPsapi) FreeLibrary(hPsapi);
+        
         hk = nullptr;
+        My_Unhuk_WinDows_Huk = nullptr;
+        hUser32 = nullptr;
+        hkernel32 = nullptr;
+        hPsapi = nullptr;
     }
 }
 

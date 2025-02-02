@@ -105,10 +105,12 @@ DLL_EXPORT void Cleanup()
     if (k_Hook) 
     {
         My_Unhuk_WinDows_Huk_Ex(k_Hook);
-        FreeLibrary(hUser32);
-        hUser32 = NULL;
+        if (hUser32) 
+        {
+            FreeLibrary(hUser32);
+            hUser32 = nullptr;
+        }
         k_Hook = nullptr;
-        hUser32 = nullptr;
     }
 }
 
