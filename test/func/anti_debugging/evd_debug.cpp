@@ -1,21 +1,19 @@
-//cl /EHsc .\evd_debug.cpp /link user32.lib /OUT:evd_debug.exe
+//cl /EHsc .\evd_debug.cpp debug_check.obj /link user32.lib /OUT:evd_debug.exe
 #include <windows.h>
-#include <stdio.h>
+#include <iostream>
 
-// bool DetectDebuggerByTiming()        [NAH]
-// {
-//     LARGE_INTEGER freq, start, end;
-//     QueryPerformanceFrequency(&freq);
-//     QueryPerformanceCounter(&start);
+extern "C" bool IsDebuggerPresentASM();
 
-//     // Simple operation (debugger single-stepping will slow it)
-//     for (volatile int i = 0; i < 100000; i++);
-
-//     QueryPerformanceCounter(&end);
-//     double elapsedTime = (double)(end.QuadPart - start.QuadPart) / freq.QuadPart;
-
-//     return (elapsedTime > 0.0002); // If too slow, debugger is likely present
-// }
+bool SelfDebug()
+{
+    if (DebugActiveProcess(GetCurrentProcessId()))
+    {
+        std::cout << "attached selfDebug" << std::endl;
+        return true;                                        //successfully attached to ourselves
+    }
+    std::cout<<"not attached selfDebug"<<std::endl;
+    return false;                                           //a debugger is already attached
+}
 
 bool DetectHardwareBreakpoints()
 {
@@ -34,7 +32,8 @@ void ClearHardwareBreakpoints()
     CONTEXT ctx = {0};
     ctx.ContextFlags = CONTEXT_DEBUG_REGISTERS;
     
-    if (GetThreadContext(GetCurrentThread(), &ctx)) {
+    if (GetThreadContext(GetCurrentThread(), &ctx))
+    {
         ctx.Dr0 = 0;
         ctx.Dr1 = 0;
         ctx.Dr2 = 0;
@@ -49,21 +48,35 @@ void ClearHardwareBreakpoints()
 
 int main()
 {
-    // if (DetectDebuggerByTiming())
-    // {
-    //     MessageBoxA(NULL, "Debugger detected!", "Debugger detected!", MB_ICONWARNING);
-    //     return 1; // Exit if debugger is found
-    // }
 
-    if (DetectHardwareBreakpoints() || IsDebuggerPresent())
+    //SelfDebug();          [BROKEN]
+
+    while(1)
     {
-        MessageBoxA(NULL, "Debugger detected!", "Debugger detected!", MB_ICONWARNING);
-        ClearHardwareBreakpoints();
-        return 1; // Exit if debugger is found
+        // if (DetectDebuggerByTiming())
+        // {
+        //     MessageBoxA(NULL, "Debugger detected!", "Debugger detected!", MB_ICONWARNING);
+        //     return 1; // Exit if debugger is found
+        // }
+
+        //MessageBoxA(NULL, "Start", "Start", MB_ICONINFORMATION);
+        std::cout << "Start" << std::endl;
+
+        if (IsDebuggerPresentASM())
+        {
+            MessageBoxA(NULL, "Debugger detected!", "Debugger detected!", MB_ICONWARNING);
+        }
+
+        // if (DetectHardwareBreakpoints() || IsDebuggerPresent())
+        // {
+        //     MessageBoxA(NULL, "Debugger detected!", "Debugger detected!", MB_ICONWARNING);
+        //     ClearHardwareBreakpoints();
+        //     return 1; // Exit if debugger is found  
+        // }
+
+        //MessageBoxA(NULL, "Debugger not detected!", "Debugger not detected!", MB_ICONINFORMATION);
+        std::cout << "\nmoving on \n" << std::endl;
+        Sleep(1000);
     }
-
-    //MessageBoxA(NULL, "Debugger not detected!", "Debugger not detected!", MB_ICONINFORMATION);
-    MessageBoxA(NULL, "Moving ahead ", "Debugger not detected!", MB_ICONINFORMATION);
-
     return 0;
 }
