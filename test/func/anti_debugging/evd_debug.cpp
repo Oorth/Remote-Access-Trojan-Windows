@@ -2,7 +2,8 @@
 #include <windows.h>
 #include <iostream>
 
-extern "C" bool IsDebuggerPresentASM();
+extern "C" BOOL IsDebuggerPresentASM();
+extern "C" BOOL DetectHardwareBreakpointsASM();
 
 bool SelfDebug()
 {
@@ -62,7 +63,12 @@ int main()
         //MessageBoxA(NULL, "Start", "Start", MB_ICONINFORMATION);
         std::cout << "Start" << std::endl;
 
-        if (IsDebuggerPresentASM())
+        // if (IsDebuggerPresentASM())
+        // {
+        //     MessageBoxA(NULL, "Debugger detected!", "Debugger detected!", MB_ICONWARNING);
+        // }
+
+        if (DetectHardwareBreakpointsASM())
         {
             MessageBoxA(NULL, "Debugger detected!", "Debugger detected!", MB_ICONWARNING);
         }
