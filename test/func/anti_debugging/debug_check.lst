@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler (x64) Version 14.41.34123.0   02/08/25 15:17:42
+Microsoft (R) Macro Assembler (x64) Version 14.41.34123.0   02/10/25 17:10:58
 debug_check.asm						     Page 1 - 1
 
 
@@ -50,8 +50,22 @@ debug_check.asm						     Page 1 - 1
  0000002A  5B			    pop rbx                         
  0000002B			DetectHardwareBreakpointsASM ENDP
 
+				; OverwriteDebugPort PROC
+				;     mov     rax, gs:[60h]               ; Get PEB base address
+				;     mov     rcx, 0                      ; Move 0 into RCX (temporary register)
+				;     mov     [rax + 20h], rcx            ; Clear DebugPort by writing 0
+				;     ret                                 ; Return from procedure
+				; OverwriteDebugPort ENDP
+
+				; CrashOnDebuggerAttach PROC
+				;     mov rax, gs:[60h]          ; Get PEB base address
+				;     mov rcx, 0FFFFFFFFFFFFFFFFh ; Load -1 into RCX
+				;     mov [rax + 18h], rcx       ; Move RCX (-1) into DebugObjectHandle
+				;     ret
+				; CrashOnDebuggerAttach ENDP
+
 				END
-Microsoft (R) Macro Assembler (x64) Version 14.41.34123.0   02/08/25 15:17:42
+Microsoft (R) Macro Assembler (x64) Version 14.41.34123.0   02/10/25 17:10:58
 debug_check.asm						     Symbols 2 - 1
 
 
