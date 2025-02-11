@@ -1,15 +1,20 @@
+//cl /EHsc .\evd_debug.cpp debug_check.obj /link user32.lib Advapi32.lib /OUT:evd_debug.exe
 #include <windows.h>
 #include <iostream>
 #include <tlhelp32.h>
 #include <psapi.h>
 #include <thread>
+#include <winternl.h>       // header for PEB
+typedef struct _PEB* PPEB;  // Define PPEB type
 
 extern "C" BOOL IsDebuggerPresentASM();
 extern "C" BOOL DetectHardwareBreakpointsASM();
 
 ///////////////////////////////////////////////////////////////////////////////
 #define Use_IsDebuggerPresent 0                     //[Works]
-#define Use_IsDebuggerPresentASM 1                  //[Works]
+#define Use_IsDebuggerPresentASM 0                  //[Works]
+#define Use_CheckNtGlobalFlag 0                     //[Not working]
+#define Use_CheckHeapPatterns 1                     //[Works]
 
 #define Use_DetectSoftwareBreakpoints 0             //[same Always shows debugger is present :( ]
 #define Use_DetectHardwareBreakpoints 0             //[Works]
@@ -28,6 +33,51 @@ typedef NTSTATUS(WINAPI* pNtSetInformationThread)
     PVOID ThreadInformation,
     ULONG ThreadInformationLength
 );
+
+
+bool CheckNtGlobalFlag()
+{
+    // Get PEB address using GS segment register (x64)
+    PPEB pPeb = (PPEB)__readgsqword(0x60);
+
+    // Read NtGlobalFlag at offset 0x68
+    DWORD NtGlobalFlag = *(PDWORD)((PBYTE)pPeb + 0x68);
+
+    // Check for HEAP_TAIL_CHECKING_ENABLED (0x10), HEAP_FREE_CHECKING_ENABLED (0x20)
+    if (NtGlobalFlag & (0x10 | 0x20))
+    {
+        std::cout << "NtGlobalFlag indicates debugging features are enabled!" << std::endl;
+        return true;
+    }
+    return false;
+}
+
+bool CheckHeapPatterns()
+{
+    PROCESS_HEAP_ENTRY HeapEntry = { 0 };
+    HANDLE hHeap = GetProcessHeap();
+
+    while (HeapWalk(hHeap, &HeapEntry))
+    {
+        if (HeapEntry.wFlags == PROCESS_HEAP_ENTRY_BUSY)  // Active heap block
+        {
+            PBYTE pOverlapped = (PBYTE)HeapEntry.lpData + HeapEntry.cbData;  // Memory after allocation
+            DWORD pattern = *(PDWORD)pOverlapped;
+
+            if (pattern == 0xABABABAB)
+            {
+                //std::cout << "Heap pattern detected (0xABABABAB)!" << std::endl;
+                return true;
+            }
+            else if (pattern == 0xFEEEFEEE)
+            {
+                //std::cout << "Heap pattern detected (0xFEEEFEEE)!" << std::endl;
+                return true;
+            }
+        }
+    }
+    return false;  // No debugging patterns found
+}
 
 void HideFromDebugger()                 //NO WORK!!!!!
 {
@@ -187,7 +237,6 @@ bool GetModuleInfo(HMODULE &hModule, MODULEINFO &modInfo)
     return true;
 }
 
-
 bool DetectSoftwareBreakpoints()
 {
     HMODULE hModule;
@@ -274,12 +323,29 @@ void DebuggingThread()
             }
         #endif
 
+        #if Use_CheckNtGlobalFlag
+            if(CheckNtGlobalFlag())
+            {
+                std::cout << "Debugger detected!" << std::endl;
+                exitProgram = true;
+            }
+        #endif
+
+        #if Use_CheckHeapPatterns
+            if(CheckHeapPatterns())
+            {
+                std::cout << "Debugger detected!" << std::endl;
+                exitProgram = true;
+            }
+        #endif
+
         Sleep(1000);
     }
 }
 
 int main()
 {
+
     #if Use_SelfDebugging
         if(SelfDebugging()) std::cout << "Self Debugging" << std::endl;
         else std::cout << "Not Self Debugging" << std::endl;
