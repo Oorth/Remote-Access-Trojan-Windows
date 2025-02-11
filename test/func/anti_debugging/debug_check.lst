@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler (x64) Version 14.41.34123.0   02/10/25 17:10:58
+Microsoft (R) Macro Assembler (x64) Version 14.41.34123.0   02/11/25 13:29:59
 debug_check.asm						     Page 1 - 1
 
 
@@ -10,11 +10,32 @@ debug_check.asm						     Page 1 - 1
  00000000			.code
 
  00000000			IsDebuggerPresentASM PROC
- 00000000  65: 48/ 8B 04 25	    mov rax, gs:[60h]               ; Get PEB base address from GS:[0x60]
+ 00000000  48/ 33 C0		    xor rax, rax                  ; Clear RAX to ensure higher bits are zero
+ 00000003  65: 48/ 8B 0C 25	    mov rcx, gs:[60h]             ; Get PEB base address from GS:[0x60]
 	   00000060
- 00000009  8A 40 02		    mov al, byte ptr [rax+2]        ; Read BeingDebugged flag (offset 0x2)
- 0000000C  C3			    ret
- 0000000D			IsDebuggerPresentASM ENDP
+ 0000000C  8A 41 02		    mov al, byte ptr [rcx+2]      ; Read BeingDebugged flag (offset 0x2)
+ 0000000F  C3			    ret
+ 00000010			IsDebuggerPresentASM ENDP
+
+
+ 00000010			DetectHardwareBreakpointsASM PROC
+ 00000010  53			    push rbx                        ; Save registers to avoid corrupting them
+
+ 00000011  0F 21 C0		    mov rax, dr0
+ 00000014  0F 21 CB		    mov rbx, dr1
+ 00000017  0F 21 D1		    mov rcx, dr2
+ 0000001A  0F 21 DA		    mov rdx, dr3
+
+ 0000001D  48/ 0B C3		    or rax, rbx                     
+ 00000020  48/ 0B C1		    or rax, rcx                     
+ 00000023  48/ 0B C2		    or rax, rdx
+
+ 00000026  0F 95 C0		    setnz al                        ; If reg set, AL = 1, else AL = 0
+ 00000029  48/ 0F B6 C0		    movzx rax, al                   ; Zero-extend AL to RAX
+
+ 0000002D  5B			    pop rbx                         
+ 0000002E			DetectHardwareBreakpointsASM ENDP
+
 
 				; DetectDebuggerTrapFlag PROC
 				;     pushfq                      ; Push RFLAGS to stack
@@ -32,23 +53,6 @@ debug_check.asm						     Page 1 - 1
 				;     ret
 				; DetectDebuggerTrapFlag ENDP
 
- 0000000D			DetectHardwareBreakpointsASM PROC
- 0000000D  53			    push rbx                        ; Save registers to avoid corrupting them
-
- 0000000E  0F 21 C0		    mov rax, dr0
- 00000011  0F 21 CB		    mov rbx, dr1
- 00000014  0F 21 D1		    mov rcx, dr2
- 00000017  0F 21 DA		    mov rdx, dr3
-
- 0000001A  48/ 0B C3		    or rax, rbx                     
- 0000001D  48/ 0B C1		    or rax, rcx                     
- 00000020  48/ 0B C2		    or rax, rdx
-
- 00000023  0F 95 C0		    setnz al                        ; If reg set, AL = 1, else AL = 0
- 00000026  48/ 0F B6 C0		    movzx rax, al                   ; Zero-extend AL to RAX
-
- 0000002A  5B			    pop rbx                         
- 0000002B			DetectHardwareBreakpointsASM ENDP
 
 				; OverwriteDebugPort PROC
 				;     mov     rax, gs:[60h]               ; Get PEB base address
@@ -65,7 +69,7 @@ debug_check.asm						     Page 1 - 1
 				; CrashOnDebuggerAttach ENDP
 
 				END
-Microsoft (R) Macro Assembler (x64) Version 14.41.34123.0   02/10/25 17:10:58
+Microsoft (R) Macro Assembler (x64) Version 14.41.34123.0   02/11/25 13:29:59
 debug_check.asm						     Symbols 2 - 1
 
 
@@ -75,8 +79,8 @@ Procedures, parameters, and locals:
 
                 N a m e                 Type     Value    Attr
 
-DetectHardwareBreakpointsASM . .	P 	 0000000D _TEXT	Length= 0000001E Public
-IsDebuggerPresentASM . . . . . .	P 	 00000000 _TEXT	Length= 0000000D Public
+DetectHardwareBreakpointsASM . .	P 	 00000010 _TEXT	Length= 0000001E Public
+IsDebuggerPresentASM . . . . . .	P 	 00000000 _TEXT	Length= 00000010 Public
 
 	   0 Warnings
 	   0 Errors

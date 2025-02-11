@@ -6,26 +6,12 @@
 .code
 
 IsDebuggerPresentASM PROC
-    mov rax, gs:[60h]               ; Get PEB base address from GS:[0x60]
-    mov al, byte ptr [rax+2]        ; Read BeingDebugged flag (offset 0x2)
+    xor rax, rax                  ; Clear RAX to ensure higher bits are zero
+    mov rcx, gs:[60h]             ; Get PEB base address from GS:[0x60]
+    mov al, byte ptr [rcx+2]      ; Read BeingDebugged flag (offset 0x2)
     ret
 IsDebuggerPresentASM ENDP
 
-; DetectDebuggerTrapFlag PROC
-;     pushfq                      ; Push RFLAGS to stack
-;     or qword ptr [rsp], 0x100   ; Set Trap Flag (TF) in RFLAGS
-;     popfq                       ; Restore modified RFLAGS
-
-;     nop                         ; Executes normally if no debugger
-;     pushfq                      ; Push flags to check if TF triggered
-;     pop rax                     ; Retrieve flags
-
-;     test rax, 0x100             ; Check if Trap Flag was set
-;     setnz al                    ; AL = 1 if debugger is present
-;     movzx rax, al               ; Zero-extend AL to RAX for return
-
-;     ret
-; DetectDebuggerTrapFlag ENDP
 
 DetectHardwareBreakpointsASM PROC
     push rbx                        ; Save registers to avoid corrupting them
@@ -44,6 +30,24 @@ DetectHardwareBreakpointsASM PROC
 
     pop rbx                         
 DetectHardwareBreakpointsASM ENDP
+
+
+; DetectDebuggerTrapFlag PROC
+;     pushfq                      ; Push RFLAGS to stack
+;     or qword ptr [rsp], 0x100   ; Set Trap Flag (TF) in RFLAGS
+;     popfq                       ; Restore modified RFLAGS
+
+;     nop                         ; Executes normally if no debugger
+;     pushfq                      ; Push flags to check if TF triggered
+;     pop rax                     ; Retrieve flags
+
+;     test rax, 0x100             ; Check if Trap Flag was set
+;     setnz al                    ; AL = 1 if debugger is present
+;     movzx rax, al               ; Zero-extend AL to RAX for return
+
+;     ret
+; DetectDebuggerTrapFlag ENDP
+
 
 ; OverwriteDebugPort PROC
 ;     mov     rax, gs:[60h]               ; Get PEB base address
