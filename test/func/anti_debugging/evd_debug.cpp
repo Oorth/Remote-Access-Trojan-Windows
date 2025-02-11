@@ -12,12 +12,12 @@ extern "C" BOOL DetectHardwareBreakpointsASM();
 
 ///////////////////////////////////////////////////////////////////////////////
 #define Use_IsDebuggerPresent 0                     //[Works]
-#define Use_IsDebuggerPresentASM 0                  //[Works]
+#define Use_IsDebuggerPresentASM 1                  //[Works]
 #define Use_CheckNtGlobalFlag 0                     //[Not working]
 #define Use_CheckHeapPatterns 1                     //[Works]
 
 #define Use_DetectSoftwareBreakpoints 0             //[same Always shows debugger is present :( ]
-#define Use_DetectHardwareBreakpoints 0             //[Works]
+#define Use_DetectHardwareBreakpoints 1             //[Works]
 #define Use_DetectHardwareBreakpointsASM 0          //[ C0000096 exception_priv_instruction, NEEDS DRIVER ]
 #define Use_ClearHardwareBreakpoints 0              //[ Might be working ]
 
@@ -54,29 +54,36 @@ bool CheckNtGlobalFlag()
 
 bool CheckHeapPatterns()
 {
-    PROCESS_HEAP_ENTRY HeapEntry = { 0 };
-    HANDLE hHeap = GetProcessHeap();
+    DWORD numHeaps = GetProcessHeaps(0, NULL);
+    HANDLE* heaps = new HANDLE[numHeaps];
+    GetProcessHeaps(numHeaps, heaps);
 
-    while (HeapWalk(hHeap, &HeapEntry))
+    for(DWORD i = 0; i < numHeaps; ++i)
     {
-        if (HeapEntry.wFlags == PROCESS_HEAP_ENTRY_BUSY)  // Active heap block
+        PROCESS_HEAP_ENTRY HeapEntry = { 0 };
+        while (HeapWalk(heaps[i], &HeapEntry))
         {
-            PBYTE pOverlapped = (PBYTE)HeapEntry.lpData + HeapEntry.cbData;  // Memory after allocation
-            DWORD pattern = *(PDWORD)pOverlapped;
-
-            if (pattern == 0xABABABAB)
+            if (HeapEntry.wFlags & PROCESS_HEAP_ENTRY_BUSY)
             {
-                //std::cout << "Heap pattern detected (0xABABABAB)!" << std::endl;
-                return true;
-            }
-            else if (pattern == 0xFEEEFEEE)
-            {
-                //std::cout << "Heap pattern detected (0xFEEEFEEE)!" << std::endl;
-                return true;
+                PBYTE pOverlapped = (PBYTE)HeapEntry.lpData + HeapEntry.cbData;                                 // Memory after allocation
+                if (*(PDWORD)pOverlapped == 0xABABABAB)
+                {
+                    std::cout << "Heap pattern detected (0xABABABAB)! at heap #" << i << std::endl;
+                    delete[] heaps;    
+                    return true;
+                }
+                else if (*(PDWORD)pOverlapped == 0xFEEEFEEE)
+                {
+                    std::cout << "Heap pattern detected (0xFEEEFEEE)! at heap #" << i << std::endl;
+                    delete[] heaps; 
+                    return true;
+                }
             }
         }
     }
-    return false;  // No debugging patterns found
+    delete[] heaps;
+
+    return false;
 }
 
 void HideFromDebugger()                 //NO WORK!!!!!
@@ -285,7 +292,7 @@ void DebuggingThread()
             if (DetectHardwareBreakpoints())
             {
                 std::cout << "Debugger detected!" << std::endl;
-                //exitProgram = true;
+                exitProgram = true;
             }
         #endif
 
