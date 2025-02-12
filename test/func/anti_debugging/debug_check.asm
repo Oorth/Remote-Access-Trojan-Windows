@@ -49,18 +49,18 @@ DetectHardwareBreakpointsASM ENDP
 ; DetectDebuggerTrapFlag ENDP
 
 
-; OverwriteDebugPort PROC
-;     mov     rax, gs:[60h]               ; Get PEB base address
-;     mov     rcx, 0                      ; Move 0 into RCX (temporary register)
-;     mov     [rax + 20h], rcx            ; Clear DebugPort by writing 0
-;     ret                                 ; Return from procedure
-; OverwriteDebugPort ENDP
+OverwriteDebugPort PROC
+    mov     rax, gs:[60h]               ; Get PEB base address
+    mov     rcx, 0                      ; Move 0 into RCX (temporary register)
+    mov     [rax + 20h], rcx            ; Clear DebugPort by writing 0
+    ret                                 ; Return from procedure
+OverwriteDebugPort ENDP
 
-; CrashOnDebuggerAttach PROC
-;     mov rax, gs:[60h]          ; Get PEB base address
-;     mov rcx, 0FFFFFFFFFFFFFFFFh ; Load -1 into RCX
-;     mov [rax + 18h], rcx       ; Move RCX (-1) into DebugObjectHandle
-;     ret
-; CrashOnDebuggerAttach ENDP
+CrashOnDebuggerAttach PROC
+    mov rax, gs:[60h]          ; Get PEB base address
+    mov rcx, 0FFFFFFFFFFFFFFFFh ; Load -1 into RCX
+    mov [rax + 18h], rcx       ; Move RCX (-1) into DebugObjectHandle
+    ret
+CrashOnDebuggerAttach ENDP
 
 END

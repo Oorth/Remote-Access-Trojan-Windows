@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler (x64) Version 14.41.34123.0   02/11/25 13:29:59
+Microsoft (R) Macro Assembler (x64) Version 14.41.34123.0   02/12/25 11:04:36
 debug_check.asm						     Page 1 - 1
 
 
@@ -54,22 +54,26 @@ debug_check.asm						     Page 1 - 1
 				; DetectDebuggerTrapFlag ENDP
 
 
-				; OverwriteDebugPort PROC
-				;     mov     rax, gs:[60h]               ; Get PEB base address
-				;     mov     rcx, 0                      ; Move 0 into RCX (temporary register)
-				;     mov     [rax + 20h], rcx            ; Clear DebugPort by writing 0
-				;     ret                                 ; Return from procedure
-				; OverwriteDebugPort ENDP
+ 0000002E			OverwriteDebugPort PROC
+ 0000002E  65: 48/ 8B 04 25	    mov     rax, gs:[60h]               ; Get PEB base address
+	   00000060
+ 00000037  48/ C7 C1		    mov     rcx, 0                      ; Move 0 into RCX (temporary register)
+	   00000000
+ 0000003E  48/ 89 48 20		    mov     [rax + 20h], rcx            ; Clear DebugPort by writing 0
+ 00000042  C3			    ret                                 ; Return from procedure
+ 00000043			OverwriteDebugPort ENDP
 
-				; CrashOnDebuggerAttach PROC
-				;     mov rax, gs:[60h]          ; Get PEB base address
-				;     mov rcx, 0FFFFFFFFFFFFFFFFh ; Load -1 into RCX
-				;     mov [rax + 18h], rcx       ; Move RCX (-1) into DebugObjectHandle
-				;     ret
-				; CrashOnDebuggerAttach ENDP
+ 00000043			CrashOnDebuggerAttach PROC
+ 00000043  65: 48/ 8B 04 25	    mov rax, gs:[60h]          ; Get PEB base address
+	   00000060
+ 0000004C  48/ B9		    mov rcx, 0FFFFFFFFFFFFFFFFh ; Load -1 into RCX
+	   FFFFFFFFFFFFFFFF
+ 00000056  48/ 89 48 18		    mov [rax + 18h], rcx       ; Move RCX (-1) into DebugObjectHandle
+ 0000005A  C3			    ret
+ 0000005B			CrashOnDebuggerAttach ENDP
 
 				END
-Microsoft (R) Macro Assembler (x64) Version 14.41.34123.0   02/11/25 13:29:59
+Microsoft (R) Macro Assembler (x64) Version 14.41.34123.0   02/12/25 11:04:36
 debug_check.asm						     Symbols 2 - 1
 
 
@@ -79,8 +83,10 @@ Procedures, parameters, and locals:
 
                 N a m e                 Type     Value    Attr
 
+CrashOnDebuggerAttach  . . . . .	P 	 00000043 _TEXT	Length= 00000018 Public
 DetectHardwareBreakpointsASM . .	P 	 00000010 _TEXT	Length= 0000001E Public
 IsDebuggerPresentASM . . . . . .	P 	 00000000 _TEXT	Length= 00000010 Public
+OverwriteDebugPort . . . . . . .	P 	 0000002E _TEXT	Length= 00000015 Public
 
 	   0 Warnings
 	   0 Errors
