@@ -1,4 +1,5 @@
 //cl /EHsc .\s3.cpp .\MemoryModule.c /link ws2_32.lib /OUT:s3.exe
+#define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <windows.h>
 #include <iostream>
@@ -44,22 +45,24 @@ int load_dlls()
     void* baseaddress_n = MemoryGetBaseAddress(hNetwork);
     std::cout << "Base Address : 0x" << std::hex << baseaddress_n << std::endl;
 
-
     send_data = (SendDataFunc)FindExportAddress(reinterpret_cast<HMODULE>(baseaddress_n), "?send_data@@YAHAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z");    
     receive_data = (RecvDataFunc)FindExportAddress(reinterpret_cast<HMODULE>(baseaddress_n), "?receive_data@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV12@@Z");
     
-    if (send_data == nullptr || receive_data == nullptr) std::cerr << "Failed to find export address of one or more functions." << std::endl;
+    if (send_data == nullptr || receive_data == nullptr)
+    {
+        std::cerr << "Failed to find export address of one or more functions." << std::endl;
+        return 1;
+    }
 
+    return 0;
 }
 
 int main()
 {
 
-    Sleep(1000);
+    load_dlls();
 
     std::cout << receive_data("target_data.rat") << std::endl;
-
-
     std::cout << "Done " << std::endl;
 
     return 0;
