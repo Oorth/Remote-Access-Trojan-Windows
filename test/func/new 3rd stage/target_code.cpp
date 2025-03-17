@@ -1,4 +1,5 @@
 //cl /EHsc /LD .\target_code.cpp /link User32.lib
+//#define WIN32_LEAN_AND_MEAN
 #include <iostream>
 #include <Windows.h>
 #include <string>

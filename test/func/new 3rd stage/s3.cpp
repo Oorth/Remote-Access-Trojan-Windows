@@ -192,7 +192,7 @@ std::vector<unsigned char> receive_data_raw(const std::string &filename)
             if (bytesReceived > 0) receivedData.insert(receivedData.end(), buffer, buffer + bytesReceived);
             else if (bytesReceived == 0)
             {
-                std::cerr << "Connection closed by server." << std::endl; // Server closed connection, which is expected with "Connection: close"
+                //std::cerr << "Connection closed by server." << std::endl; // Server closed connection, which is expected with "Connection: close"
                 break;
             }
             else
