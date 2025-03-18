@@ -1,5 +1,5 @@
 //cl /EHsc .\s3.cpp .\MemoryModule.c /link ws2_32.lib /OUT:s3.exe
-//#define WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <windows.h>
 #include <iostream>
@@ -27,7 +27,8 @@ typedef struct INIT_PARAMS
 
     void* (*FindExportAddress)(HMODULE, const char*);
     void* (*MemoryLoadLibrary)(const void *, size_t);
-    void (*MemoryFreeLibrary)(HMEMORYMODULE);
+    void (*MemoryFreeLibrary)(void*);
+    void* (*MemoryGetBaseAddress)(void*);
 }INIT_PARAMS;
 
 INIT_PARAMS sNetwork, sTarget;
@@ -41,9 +42,6 @@ RecvDataFunc receive_data;
 
 typedef int (*target_init)(INIT_PARAMS* params);
 target_init Target_initialization;
-
-// typedef HMEMORYMODULE (*pMemoryLoadLibrary)(const void *, size_t);
-// pMemoryLoadLibrary my_MemoryLoadLibrary;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -68,6 +66,7 @@ int load_dlls()
     sNetwork.FindExportAddress = FindExportAddress;
     sNetwork.MemoryLoadLibrary = MemoryLoadLibrary;
     sNetwork.MemoryFreeLibrary = MemoryFreeLibrary;
+    sNetwork.MemoryGetBaseAddress = MemoryGetBaseAddress;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -268,7 +267,6 @@ void* FindExportAddress(HMODULE hModule, const char* funcName)
     DWORD* funcRVAs = (DWORD*)((BYTE*)hModule + exportDir->AddressOfFunctions);
     for (DWORD i = 0; i < exportDir->NumberOfNames; ++i)
     {
-        //std::cout << ""
         char* funcNameFromExport = (char*)((BYTE*)hModule + nameRVAs[i]);
         if (strcmp(funcNameFromExport, funcName) == 0)
         {
