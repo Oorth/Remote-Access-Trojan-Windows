@@ -74,7 +74,6 @@ int load_dlls()
     htarget = MemoryLoadLibrary(vtarget_code.data(), vtarget_code.size());
 
     void* baseaddress_t = MemoryGetBaseAddress(htarget);
-    //std::cout << "Base Address : 0x" << std::hex << baseaddress_t << std::endl;
     sTarget.base_address = baseaddress_t;
 
     Target_initialization = (target_init)FindExportAddress(reinterpret_cast<HMODULE>(baseaddress_t), "?target_init@@YAHPEAUINIT_PARAMS@@@Z");
@@ -82,9 +81,17 @@ int load_dlls()
     {
         std::cerr << "Failed to get Target_initialization() address "<< GetLastError() << std::endl;
         MemoryFreeLibrary(htarget);
+        MemoryFreeLibrary(hNetwork);
         return 0;
     }
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    if (!hNetwork || !htarget)
+    {
+        std::cerr << "Failed to load one or more DLLs." << std::endl;
+        if (hNetwork) MemoryFreeLibrary(hNetwork);
+        if (htarget) MemoryFreeLibrary(htarget);
+        return 0;
+    }
     return 1;
 }
 
